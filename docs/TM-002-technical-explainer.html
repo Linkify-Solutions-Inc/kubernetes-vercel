@@ -691,6 +691,13 @@ the <code>metrics.k8s.io</code> API, which is served by <strong>metrics-server</
 kube-prometheus-stack. Without it, HPA fails with <em>"unable to fetch metrics from resource metrics
 API"</em>. It is deployed as its own ArgoCD Application (<code>gitops/apps/metrics-server.yaml</code>)
 with <code>--kubelet-insecure-tls</code> (EKS kubelets use self-signed certs).</p>
+<p><span class="para-num">8-1b.</span><strong>ArgoCD skips Helm CRDs.</strong> ArgoCD renders Helm charts
+via <code>helm template</code>, which omits the chart's <code>crds/</code> directory — so the
+kube-prometheus-stack's Prometheus/Alertmanager CRDs never install on their own, and the operator logs
+<em>"prometheuses not installed"</em>. The bootstrap applies them first with
+<code>kubectl apply --server-side=true -f gitops/crds/</code> (server-side, because these CRDs exceed the
+262 KiB annotation limit of a normal apply). If the operator started before the CRDs existed, restart it
+so it re-detects them and builds the Prometheus statefulset.</p>
 
 <p><span class="para-num">8-2.</span><strong>Karpenter is the machine dial.</strong> When pods exist that
 no current node can fit, Karpenter buys a node; when nodes sit idle past the consolidation window, it

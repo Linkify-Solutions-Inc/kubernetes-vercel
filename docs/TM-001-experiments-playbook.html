@@ -277,8 +277,12 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 <dt>kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d</dt><dd>ArgoCD seeds a random admin password in a Secret on first install. This extracts it and decodes it (<code>base64 -d</code>) so you can log in once.</dd>
 </dl></div></div>
 
-<p><span class="para-num">4-3.</span><strong>Register GitOps.</strong></p>
-<pre><code>kubectl apply -f gitops/bootstrap/app-of-apps.yaml
+<p><span class="para-num">4-3.</span><strong>Install the monitoring CRDs, then register GitOps.</strong>
+ArgoCD deploys the kube-prometheus-stack as a Helm chart but <em>skips Helm's <code>crds/</code>
+directory</em> — the Prometheus/Alertmanager CRDs never install on their own. Apply them first,
+server-side (these large CRDs exceed <code>kubectl apply</code>'s 262 KiB annotation limit):</p>
+<pre><code>kubectl apply --server-side=true -f gitops/crds/
+kubectl apply -f gitops/bootstrap/app-of-apps.yaml
 argocd app list    # one parent app (mini-paas-apps); it discovers the child apps in gitops/apps/</code></pre>
 
 <p><span class="para-num">4-4.</span><strong>Give Karpenter its node dial.</strong> The controller is up
@@ -532,6 +536,7 @@ surprise AWS bill is the one failure that cannot be rolled back.</p>
 <tr><td>Pod fails: <em>runAsNonRoot and image has non-numeric user</em></td><td>Container user</td><td><code>runAsNonRoot: true</code> needs a numeric UID. Use <code>USER 1000</code> (node) / <code>USER 10001</code> (go) in the Dockerfiles, not <code>USER node</code>/<code>appuser</code>.</td></tr>
 <tr><td>HPA: <em>unable to get cpu utilization / metrics API not found</em></td><td>metrics-server missing</td><td>HPA needs the <code>metrics.k8s.io</code> API, provided by metrics-server (not kube-prometheus-stack). It is deployed via <code>gitops/apps/metrics-server.yaml</code>.</td></tr>
 <tr><td>CI promotion fails: <em>! [rejected] main -> main (fetch first)</em></td><td>Concurrent push race</td><td>The ci-bot push races with human pushes. The workflow's Promote step rebases first (<code>git pull --rebase origin main</code>). If you hit it manually, pull --rebase before pushing your gitops change.</td></tr>
+<tr><td>Prometheus pod never created; operator logs <em>"prometheuses … not installed"</em></td><td>ArgoCD skips Helm CRDs</td><td>ArgoCD renders Helm charts via <code>helm template</code>, which omits <code>crds/</code>. Apply the CRDs first: <code>kubectl apply --server-side=true -f gitops/crds/</code> (before the app-of-apps). If the operator already started without them, restart it.</td></tr>
 </table></div>
 
 <h2 id="appB">Appendix B — Cost table</h2>
