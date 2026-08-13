@@ -1,0 +1,32 @@
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfplan
+infra/*.tfvars
+!infra/*.tfvars.example
+# .terraform.lock.hcl IS committed (reproducibility)
+
+# Local env / secrets
+.env
+*.env
+*.pem
+
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Go
+*.exe
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

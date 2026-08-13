@@ -1,0 +1,26 @@
+# NetworkPolicy for the tenant (REQ-3.4-3). ALB traffic arrives from OUTSIDE the
+# pod network, so ingress must stay permissive or the app goes unreachable — that
+# gotcha is deliberate. The isolation lesson is taught on the EGRESS side:
+# egress is same-namespace + DNS only, so cross-tenant calls are blocked.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: app-api-node
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - {}
+  egress:
+    - to:
+        - podSelector: {}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

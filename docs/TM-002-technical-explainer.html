@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TM-LNKFY-MP-002 · Mini-PaaS Technical Description</title>
+<style>
+:root{
+  --paper:#fbfaf7; --ink:#1a1d1f; --ink-2:#4b4f52; --rule:#c9c5bb; --rule-soft:#e4e1d8;
+  --olive:#4a5240; --olive-soft:#eef0e9;
+  --warn:#a4262c; --warn-bg:#faf0f0; --caut:#8a6408; --caut-bg:#faf6e9;
+  --note:#2a5b8f; --note-bg:#eef3f8; --chk:#2f6b3a; --chk-bg:#eef5ef;
+  --code-bg:#f1efe9; --code-ink:#24272a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#191b1d; --ink:#dcdad2; --ink-2:#a5a49c; --rule:#43464a; --rule-soft:#2e3134;
+    --olive:#9aa588; --olive-soft:#25291f;
+    --warn:#e08387; --warn-bg:#2c1d1e; --caut:#d4b35e; --caut-bg:#2a2415;
+    --note:#8fb4d9; --note-bg:#1c2733; --chk:#8cc79a; --chk-bg:#1c2b20;
+    --code-bg:#232527; --code-ink:#d3d1c9;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#191b1d; --ink:#dcdad2; --ink-2:#a5a49c; --rule:#43464a; --rule-soft:#2e3134;
+  --olive:#9aa588; --olive-soft:#25291f;
+  --warn:#e08387; --warn-bg:#2c1d1e; --caut:#d4b35e; --caut-bg:#2a2415;
+  --note:#8fb4d9; --note-bg:#1c2733; --chk:#8cc79a; --chk-bg:#1c2b20;
+  --code-bg:#232527; --code-ink:#d3d1c9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.65 Charter,Georgia,"Times New Roman",serif;}
+.page{max-width:880px;margin:0 auto;padding:2.5rem 1.5rem 6rem}
+h1,h2,h3,h4,.tm-label{font-family:"Avenir Next Condensed","Helvetica Neue","Arial Narrow",Arial,sans-serif}
+h1{font-size:1.9rem;line-height:1.2;text-wrap:balance;margin:.2rem 0}
+h2{font-size:1.35rem;margin:3rem 0 .8rem;padding-top:1.2rem;border-top:3px solid var(--ink);
+   text-transform:uppercase;letter-spacing:.04em}
+h3{font-size:1.08rem;margin:1.8rem 0 .5rem;color:var(--ink)}
+h4{font-size:.95rem;margin:1.2rem 0 .3rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}
+p{margin:.6rem 0;max-width:70ch}
+.tm-head{border:2px solid var(--ink);padding:1.2rem 1.4rem;display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:flex-start}
+.tm-label{font-size:.8rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-2)}
+.tm-num{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.95rem;text-align:right}
+.meta-table{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.meta-table td{padding:.05rem .8rem .05rem 0}
+.eyebrow{color:var(--olive);font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;
+  text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;margin:0 0 .2rem}
+pre{background:var(--code-bg);color:var(--code-ink);padding:.9rem 1rem;
+  overflow-x:auto;font:.83rem/1.55 ui-monospace,Menlo,Consolas,"Courier New",monospace;margin:.8rem 0}
+code{font:.86em ui-monospace,Menlo,Consolas,monospace;background:var(--code-bg);padding:.08em .35em;border-radius:2px}
+pre code{background:none;padding:0}
+.box{border:2px solid;margin:1.1rem 0;max-width:74ch}
+.box .bx-label{font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;
+  text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;font-weight:700;
+  padding:.3rem .8rem;border-bottom:1px solid}
+.box .bx-body{padding:.6rem .9rem;font-size:.93rem}
+.box .bx-body p{margin:.35rem 0}
+.warning{border-color:var(--warn);background:var(--warn-bg)}
+.warning .bx-label{color:var(--warn);border-color:var(--warn)}
+.caution{border-color:var(--caut);background:var(--caut-bg)}
+.caution .bx-label{color:var(--caut);border-color:var(--caut)}
+.note{border-color:var(--note);background:var(--note-bg)}
+.note .bx-label{color:var(--note);border-color:var(--note)}
+.checkpoint{border-color:var(--chk);background:var(--chk-bg)}
+.checkpoint .bx-label{color:var(--chk);border-color:var(--chk)}
+table.data{border-collapse:collapse;width:100%;font-size:.88rem;margin:.9rem 0}
+table.data th{font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;text-transform:uppercase;
+  letter-spacing:.05em;font-size:.78rem;text-align:left;border-bottom:2px solid var(--ink);padding:.4rem .6rem}
+table.data td{border-bottom:1px solid var(--rule-soft);padding:.45rem .6rem;vertical-align:top}
+.tblwrap{overflow-x:auto}
+.para-num{color:var(--olive);font-family:ui-monospace,Menlo,monospace;font-size:.85em;margin-right:.5em}
+ol.steps{counter-reset:step;padding-left:0;max-width:74ch}
+ol.steps>li{list-style:none;margin:.9rem 0;padding-left:2.6rem;position:relative}
+ol.steps>li::before{counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.1rem;width:1.7rem;height:1.7rem;border:2px solid var(--olive);
+  display:flex;align-items:center;justify-content:center;
+  font:700 .85rem "Avenir Next Condensed","Arial Narrow",Arial,sans-serif;color:var(--olive)}
+.toc{columns:2;gap:2.5rem;font-size:.92rem}
+.toc a{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--rule)}
+.toc div{margin:.25rem 0;break-inside:avoid}
+a{color:var(--note)}
+.dist{font-size:.8rem;color:var(--ink-2);border-top:1px solid var(--rule);margin-top:.8rem;padding-top:.5rem}
+.anatomy{border:1px solid var(--olive);background:var(--olive-soft);margin:.9rem 0;max-width:74ch}
+.anatomy .bx-label{color:var(--olive);border-color:var(--olive)}
+.anatomy dl{margin:.2rem 0;font-size:.9rem}
+.anatomy dt{font:.82rem ui-monospace,Menlo,Consolas,monospace;margin-top:.5rem}
+.anatomy dd{margin:.1rem 0 .2rem 1.2rem}
+@media (max-width:640px){.toc{columns:1}}
+@media print{body{font-size:11pt}.page{max-width:none}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="box warning"><div class="bx-label">Draft — not yet verified</div><div class="bx-body">
+<p>This volume is a draft based on PRD LK-MP-PRD-001. It will be regenerated to match the verified build
+after the code is written and the platform is exercised. (Order changed by design: code first,
+documentation second.)</p>
+</div></div>
+
+<header class="tm-head">
+  <div>
+    <p class="tm-label">Technical Manual · Theory of Operation</p>
+    <h1>Mini-PaaS Platform<br>Technical Description &amp; Theory of Operation</h1>
+    <table class="meta-table"><tbody>
+      <tr><td>Audience</td><td>Operators and students of the system (DevOps course depth)</td></tr>
+      <tr><td>System</td><td>Linkify kubernetes-vercel Mini-PaaS platform</td></tr>
+      <tr><td>Companion</td><td>TM-LNKFY-MP-001 (the experiments playbook this volume explains)</td></tr>
+      <tr><td>Basis</td><td>Specification LK-MP-PRD-001 Rev A</td></tr>
+    </tbody></table>
+  </div>
+  <div class="tm-num">
+    TM-LNKFY-MP-002<br>Rev A · 2026-08-13<br>
+    <span style="font-size:.8rem">Format per MIL-STD-38784 conventions</span>
+  </div>
+  <p class="dist">DISTRIBUTION: Linkify Solutions internal. This volume answers <em>why</em>; TM-001
+  answers <em>how</em>. Read them together: procedure without theory produces button-pushers, theory
+  without procedure produces philosophers, and neither can run a platform alone.</p>
+</header>
+
+<h2 id="toc">Contents</h2>
+<div class="toc">
+  <div><a href="#ch1">1 — The ideas underneath everything</a></div>
+  <div><a href="#ch2">2 — System architecture &amp; the life of a deployment</a></div>
+  <div><a href="#ch3">3 — Repository tour</a></div>
+  <div><a href="#ch4">4 — The components, one by one</a></div>
+  <div><a href="#ch5">5 — Multi-tenancy &amp; isolation explained</a></div>
+  <div><a href="#ch6">6 — Autoscaling economics</a></div>
+  <div><a href="#ch7">7 — CI/CD: how code becomes a running platform</a></div>
+  <div><a href="#ch8">8 — Glossary</a></div>
+</div>
+
+<h2 id="ch1">Chapter 1 — The ideas underneath everything</h2>
+
+<p><span class="para-num">1-1.</span><strong>Declarative over imperative.</strong> In this platform you
+never tell Kubernetes <em>how</em> to do something step by step; you describe the <em>desired state</em>
+and a controller makes reality match it. <code>kubectl apply -f manifest.yaml</code> says "this is what
+I want", not "do this, then this, then this". This single inversion of thinking — from procedure to
+desired state — is the biggest mental shift in modern platform work, and GitOps and autoscaling both
+fall out of it.</p>
+
+<p><span class="para-num">1-2.</span><strong>Infrastructure as code, with a ledger.</strong> Terraform
+treats your AWS account as something you describe in files and <em>reconcile</em>. Three words carry all
+the meaning: <strong>state</strong> (what you currently own, recorded in S3), <strong>plan</strong> (the
+diff between what you own and what you wrote), <strong>apply</strong> (making the plan real). Because the
+state is the source of truth, everything can be destroyed and recreated — which is exactly why this
+project can be a one-month exercise instead of a permanent gamble.</p>
+
+<p><span class="para-num">1-3.</span><strong>GitOps is the deployment engine.</strong> The platform has
+no custom deploy server and no special "engine" code. The engine is a git repository plus a controller
+that watches it. When you want a new version of an app, you change a file in git; ArgoCD notices, diffs
+the cluster against the desired state, and converges. Deleting a pod is not a bug — it is a test, and
+ArgoCD wins it.</p>
+
+<p><span class="para-num">1-4.</span><strong>Two different autoscalers, two different jobs.</strong>
+Pods scale inside a node (HPA, based on CPU utilization of requests); nodes scale inside the account
+(Karpenter, based on pods that cannot be scheduled). Confusing them is the classic mistake; the whole of
+Chapter 6 exists to keep them straight.</p>
+
+<p><span class="para-num">1-5.</span><strong>Tenancy is a platform responsibility.</strong> When many
+things share one cluster, the person running the cluster owns the boundaries: what each tenant may
+consume (quota, limits) and what each tenant may reach (network policy). That is the entire job of a
+platform team, compressed into Chapter 5.</p>
+
+<div class="box note"><div class="bx-label">Note — ephemeral by design</div><div class="bx-body">
+<p>Every choice in this architecture (code, not clicks; git, not state; teardown, not goodbye) exists so
+the platform can be born, studied, and destroyed in a month. If a component can only be built but not
+torn down, it does not belong in the exercise.</p>
+</div></div>
+
+<h2 id="ch2">Chapter 2 — System architecture &amp; the life of a deployment</h2>
+
+<p><span class="para-num">2-1.</span><strong>The path from a commit to a live URL.</strong> Follow one
+change through the whole system — this is the picture the project exists to make you hold in your head:</p>
+
+<ol class="steps">
+  <li><strong>You push</strong> a change to an app in GitHub. This is the only human action in the loop.</li>
+  <li><strong>GitHub Actions</strong> builds the container image and runs a minimal check. It authenticates to AWS by <em>federation</em> (OIDC) — it is trusted temporarily, with no stored keys.</li>
+  <li><strong>The image lands in ECR</strong> under an immutable tag: the commit SHA. The tag is the version's identity for life.</li>
+  <li><strong>Actions updates the manifest</strong> in the <code>gitops/</code> repository — the desired state now points at the new tag.</li>
+  <li><strong>ArgoCD notices the drift</strong> between the gitops repo and the live cluster, and syncs: it applies the manifest, creating or updating the namespace, quota, deployment, service, ingress, and HPA for that app.</li>
+  <li><strong>The scheduler places the pods</strong> on nodes. If no node has room, <strong>Karpenter</strong> provisions one.</li>
+  <li><strong>The ingress controller routes</strong> <code>app.&lt;domain&gt;</code> through the ALB to the app's Service, which load-balances to the pods.</li>
+  <li><strong>Prometheus scrapes</strong> metrics; if the app's CPU crosses the HPA target, replicas grow — and if pods no longer fit, Karpenter adds a node. Grafana shows all of it.</li>
+</ol>
+
+<p><span class="para-num">2-2.</span><strong>The same path, as a table.</strong></p>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Moment</th><th>Component</th><th>What it does</th><th>PRD req.</th></tr>
+<tr><td>Push</td><td>GitHub</td><td>The human interface; the only input.</td><td>REQ-3.2</td></tr>
+<tr><td>Build &amp; release</td><td>GitHub Actions + ECR</td><td>Image built, tested, tagged immutably, pushed.</td><td>REQ-3.2-2</td></tr>
+<tr><td>Desired state</td><td><code>gitops/</code> repo</td><td>Manifests: namespace, quota, deployment, service, ingress, HPA.</td><td>REQ-3.3</td></tr>
+<tr><td>Reconcile</td><td>ArgoCD</td><td>Diffs git vs cluster; syncs and self-heals.</td><td>REQ-3.3</td></tr>
+<tr><td>Isolation</td><td>Namespace + quota + policy</td><td>Each tenant bounded and fenced.</td><td>REQ-3.4</td></tr>
+<tr><td>Route</td><td>Ingress + ALB</td><td><code>app.&lt;domain&gt;</code> → Service → pods.</td><td>REQ-3.6</td></tr>
+<tr><td>Pod scale</td><td>HPA</td><td>Replicas grow/shrink with CPU.</td><td>REQ-3.7</td></tr>
+<tr><td>Node scale</td><td>Karpenter</td><td>Nodes provision/consolidate to fit pods.</td><td>REQ-3.7</td></tr>
+<tr><td>Observe</td><td>Prometheus + Grafana</td><td>Every step above, visible.</td><td>REQ-3.8</td></tr>
+</table></div>
+
+<h2 id="ch3">Chapter 3 — Repository tour</h2>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Path</th><th>Contents</th><th>Who owns it</th></tr>
+<tr><td><code>infra/</code></td><td>Terraform: VPC, EKS, Karpenter, ECR, DNS, IAM (IRSA + OIDC), S3/DynamoDB state</td><td>Changed rarely; applied by <code>terraform apply</code></td></tr>
+<tr><td><code>apps/</code></td><td>The five demo apps (each with Dockerfile + config) plus <code>loadgen</code></td><td>Changed by git push → pipeline</td></tr>
+<tr><td><code>gitops/</code></td><td>ArgoCD App-of-Apps + per-app manifests (namespace, quota, limits, policy, deployment, service, ingress, hpa)</td><td>Changed by the pipeline; reconciled by ArgoCD</td></tr>
+<tr><td><code>docs/</code></td><td>PRD (LK-MP-PRD-001), this manual, the playbook</td><td>Humans</td></tr>
+<tr><td><code>.github/workflows/</code></td><td>The CI pipeline (OIDC-assumed role → build → ECR → gitops commit)</td><td>GitHub Actions</td></tr>
+</table></div>
+
+<p><span class="para-num">3-1.</span>The division is deliberate: <code>infra/</code> is the "born once"
+layer, <code>gitops/</code> is the "runs forever" layer, and <code>apps/</code> is the layer your pushes
+touch daily. Knowing which file answers which question ("how is the cluster made?" → <code>infra/</code>;
+"what is running and why?" → <code>gitops/</code>) is half of operating the system.</p>
+
+<h2 id="ch4">Chapter 4 — The components, one by one</h2>
+
+<div class="box anatomy"><div class="bx-label">Component anatomy</div><div class="bx-body"><dl>
+<dt>Amazon EKS</dt><dd>The managed control plane. AWS runs the API server and etcd for you; you pay a flat hourly rate and operate only the worker nodes. Kubernetes knowledge transfers directly — EKS is stock Kubernetes, not a fork.</dd>
+<dt>Karpenter</dt><dd>The node autoscaler. It watches for unschedulable pods, picks the cheapest instance type that fits, provisions it, and later consolidates idle nodes away. It is the reason "the cluster grows when the platform needs it".</dd>
+<dt>ArgoCD</dt><dd>The GitOps controller and therefore the deployment engine. Declarative, self-healing, prunes anything git removed. Its "Application" is the unit of deployment — one per tenant.</dd>
+<dt>AWS Load Balancer Controller</dt><dd>Turns a Kubernetes Ingress object into a real ALB and wires the target group to your Services. The bridge between Kubernetes routing and AWS networking.</dd>
+<dt>kube-prometheus-stack</dt><dd>A Helm chart bundling Prometheus (metrics storage + scraping), Grafana (dashboards), node-exporter (node metrics), and kube-state-metrics (cluster object metrics). Installed in one command; the whole observability story.</dd>
+<dt>IRSA</dt><dd>IAM Roles for Service Accounts: a Kubernetes ServiceAccount maps to an IAM role, and pods assume that role via projected credentials. No access keys inside the cluster, ever.</dd>
+<dt>GitHub OIDC</dt><dd>The CI job presents a signed token to AWS; AWS verifies it and mints short-lived credentials. The pipeline is trusted for a few minutes per run instead of holding keys forever.</dd>
+<dt>Terraform state</dt><dd>S3 bucket (state file) + DynamoDB (lock). The ledger that makes plan/apply and destroy possible — and the thing that makes the whole project disposable.</dd>
+</dl></div></div>
+
+<h2 id="ch5">Chapter 5 — Multi-tenancy &amp; isolation explained</h2>
+
+<p><span class="para-num">5-1.</span>A platform's job is to let many things share one cluster without
+hurting each other. Three mechanisms compose to do that, and they are deliberately separate:</p>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Mechanism</th><th>Answers</th><th>Enforced by</th></tr>
+<tr><td>Namespace</td><td>"What is mine?" — a named boundary for objects</td><td>API server</td></tr>
+<tr><td>ResourceQuota + LimitRange</td><td>"How much may I take?" — totals per namespace, per-pod bounds</td><td>Admission control (rejects before a pod exists)</td></tr>
+<tr><td>NetworkPolicy</td><td>"Who may I talk to?" — default-deny, allow same-namespace, allow ingress</td><td>CNI (enforced on the data path)</td></tr>
+</table></div>
+
+<p><span class="para-num">5-2.</span>Why all three? Because each answers a different question and they
+fail independently. A namespace without a quota lets one tenant starve the cluster; a quota without a
+network policy lets one tenant reach another's data. This is also exactly how a production platform team
+thinks — the demo apps are stand-ins for real tenants, but the controls are the real thing.</p>
+
+<p><span class="para-num">5-3.</span><strong>A subtlety worth naming:</strong> quota rejection happens
+at admission time and surfaces as an <em>event</em>, not a container log. Learning to read events
+(<code>kubectl describe</code>, <code>kubectl get events</code>) rather than only logs is one of the
+quiet skills this project teaches.</p>
+
+<h2 id="ch6">Chapter 6 — Autoscaling economics</h2>
+
+<p><span class="para-num">6-1.</span><strong>HPA is the pod dial.</strong> The HorizontalPodAutoscaler
+watches the CPU <em>utilization of the requests</em> (not the machine's CPU). Because the demo apps
+request 50m CPU and HPA targets 50%, a modest load crosses the threshold quickly — the demo is tuned so
+the lesson fires with light effort. What HPA cannot do is create more machine.</p>
+
+<p><span class="para-num">6-2.</span><strong>Karpenter is the machine dial.</strong> When pods exist that
+no current node can fit, Karpenter buys a node; when nodes sit idle past the consolidation window, it
+sells them back. Node choice is a cost-and-speed dial: <code>t3.medium</code> was chosen because it is
+the smallest instance where a handful of extra replicas actually forces a new node — the node-scaling
+lesson cannot even be observed on a bigger instance.</p>
+
+<p><span class="para-num">6-3.</span><strong>The cost picture.</strong> The EKS control plane costs the
+same whether nodes are micro or medium — that is why "use a smaller instance to save money" is a
+trap (TM-001 Appendix B). Real levers: node count, spot vs on-demand, and NAT choice.</p>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Scale type</th><th>Level</th><th>Trigger</th><th>You watch it with</th></tr>
+<tr><td>HPA</td><td>Pods inside a node</td><td>CPU utilization of requests crossing target</td><td><code>kubectl get hpa -w</code></td></tr>
+<tr><td>Karpenter</td><td>Nodes in the account</td><td>Pending pods that no node can fit</td><td><code>kubectl get nodes -w</code></td></tr>
+</table></div>
+
+<div class="box note"><div class="bx-label">Note — downscaling is half the lesson</div><div class="bx-body">
+<p>Everyone demonstrates scale-up. This project deliberately demonstrates scale-<em>down</em> too: stop
+the load, and both HPA and Karpenter must consolidate back to baseline. A platform that only grows is a
+platform that only bills.</p>
+</div></div>
+
+<h2 id="ch7">Chapter 7 — CI/CD: how code becomes a running platform</h2>
+
+<p><span class="para-num">7-1.</span><strong>CI (Continuous Integration)</strong> is the build side: every
+push is compiled, checked, and containerized in a reproducible way. <strong>CD (Continuous Delivery)</strong>
+is the release side: the artifact is delivered and promoted. In this platform, CI lives in GitHub Actions
+and CD <em>is</em> GitOps — the delivery mechanism is a git commit that a controller reconciles. There is
+no SSH-into-a-server-and-restart anywhere in the loop.</p>
+
+<p><span class="para-num">7-2.</span><strong>Why OIDC and not keys?</strong> A stored AWS access key is a
+permanent credential that outlives its usefulness and leaks. OIDC federation replaces it with a trust
+relationship: the pipeline proves its identity to AWS with a short-lived signed token, gets short-lived
+credentials, and is done. It is both more secure and simpler to operate — no secret rotation, no
+"where did the key go".</p>
+
+<p><span class="para-num">7-3.</span><strong>Why immutable tags?</strong> The image is tagged with its
+commit SHA, so a running version can always be traced back to the exact code that produced it. It also
+makes rollback trivial: point the manifest at the previous tag (via <code>git revert</code>) and sync.
+The tag, the git history, and the running pod must always tell the same story — if they ever disagree,
+someone bypassed the loop.</p>
+
+<h2 id="ch8">Chapter 8 — Glossary</h2>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Term</th><th>Definition</th></tr>
+<tr><td>EKS</td><td>Amazon's managed Kubernetes: AWS runs the control plane; you run worker nodes.</td></tr>
+<tr><td>Pod</td><td>The smallest schedulable unit in Kubernetes: one or more containers sharing a network namespace.</td></tr>
+<tr><td>Deployment</td><td>Declarative controller for a set of identical pods; owns rollouts and rollbacks.</td></tr>
+<tr><td>Service</td><td>Stable network endpoint in front of a set of pods; the thing the ingress talks to.</td></tr>
+<tr><td>Namespace</td><td>A named scope for Kubernetes objects; the tenancy boundary in this project.</td></tr>
+<tr><td>ResourceQuota</td><td>Admission-time limit on total resources a namespace may consume.</td></tr>
+<tr><td>LimitRange</td><td>Per-pod minimum/maximum/defaults for resource requests and limits inside a namespace.</td></tr>
+<tr><td>NetworkPolicy</td><td>Declarative firewall between pods, enforced by the CNI on the data path.</td></tr>
+<tr><td>Ingress</td><td>Declarative rule mapping hostnames/paths to Services; realized as an ALB here.</td></tr>
+<tr><td>HPA</td><td>HorizontalPodAutoscaler — scales pod replicas based on observed utilization.</td></tr>
+<tr><td>Karpenter</td><td>Node autoscaler — provisions and consolidates EC2 nodes to fit pending pods.</td></tr>
+<tr><td>ArgoCD</td><td>GitOps controller — reconciles live cluster state to the desired state in git.</td></tr>
+<tr><td>GitOps</td><td>The practice of making git the single source of truth and a controller the deployer.</td></tr>
+<tr><td>IRSA</td><td>IAM Roles for Service Accounts — pods assume scoped IAM roles without keys.</td></tr>
+<tr><td>OIDC</td><td>OpenID Connect federation — lets CI prove identity to AWS with short-lived tokens.</td></tr>
+<tr><td>ECR</td><td>Amazon's container registry; stores the five demo images under immutable SHA tags.</td></tr>
+<tr><td>ALB</td><td>Application Load Balancer — the AWS L7 load balancer the ingress controller manages.</td></tr>
+<tr><td>kube-prometheus-stack</td><td>Helm chart bundling Prometheus, Grafana, node-exporter, and kube-state-metrics.</td></tr>
+<tr><td>Terraform state</td><td>The recorded inventory of what you own (S3) plus the lock (DynamoDB); basis of plan/apply/destroy.</td></tr>
+<tr><td>App-of-Apps</td><td>An ArgoCD pattern where one "parent" Application deploys all other Applications.</td></tr>
+<tr><td>Self-heal</td><td>ArgoCD behavior: any drift from git is corrected automatically, even deletions.</td></tr>
+</table></div>
+
+<p class="dist">End of document — TM-LNKFY-MP-002 Rev A · 2026-08-13 · Companion: TM-LNKFY-MP-001.</p>
+
+</div>
+</body>
+</html>

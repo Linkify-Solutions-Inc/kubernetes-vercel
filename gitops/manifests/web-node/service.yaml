@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-node
+  namespace: app-web-node
+spec:
+  selector:
+    app: web-node
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  type: ClusterIP

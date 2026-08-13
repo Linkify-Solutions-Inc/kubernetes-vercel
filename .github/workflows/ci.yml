@@ -1,0 +1,114 @@
+# CI/CD — the "engine" is CI + GitOps.
+#
+#   git push → detect changed app(s) → build image → push to ECR (immutable SHA
+#   tag) → update gitops/manifests/<app>/deployment.yaml → push. ArgoCD sees the
+#   manifest change and reconciles the cluster. No manual steps in the loop.
+#
+# Required GitHub Actions secrets:
+#   AWS_ROLE_ARN   = the `github_actions_role_arn` output of `infra/`
+#   (region is hardcoded to us-east-1 below — match infra/)
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/**"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC federation to AWS — no static keys anywhere
+  contents: write   # to commit the gitops image promotion
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  # Which apps actually changed in this push?
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.detect.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: detect
+        run: |
+          APPS=$(git diff --name-only HEAD^ HEAD -- apps/ 2>/dev/null \
+            | sed -n 's|^apps/\([^/]*\)/.*|\1|p' | sort -u \
+            | grep -E '^(api-node|web-node|worker-node|py-api|go-api)$' \
+            | jq -R -s -c 'split("\n") | map(select(length>0))')
+          if [ -z "$APPS" ] || [ "$APPS" = "null" ]; then APPS='[]'; fi
+          echo "apps=$APPS" >> "$GITHUB_OUTPUT"
+
+  # One build per changed app.
+  build:
+    needs: changes
+    if: needs.changes.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Serialized on purpose: the gitops promotion commits to the same branch,
+      # and two parallel pushes would race. max-parallel: 1 makes it deterministic.
+      max-parallel: 1
+      matrix:
+        app: ${{ fromJson(needs.changes.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS via OIDC (no keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 900
+
+      - name: Compute image reference
+        id: img
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="$ACCOUNT.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          echo "registry=$REGISTRY" >> "$GITHUB_OUTPUT"
+          echo "image=$REGISTRY/mini-paas/${{ matrix.app }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ steps.img.outputs.registry }}
+
+      - name: Minimal check (per language)
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          case "${{ matrix.app }}" in
+            api-node|web-node|worker-node)
+              [ -f package-lock.json ] && npm ci || npm install --no-audit --no-fund
+              npm run typecheck
+              ;;
+            py-api)
+              python -m py_compile main.py
+              ;;
+            go-api)
+              go vet ./...
+              ;;
+          esac
+
+      - name: Build image
+        run: |
+          docker build \
+            -f apps/${{ matrix.app }}/Dockerfile \
+            -t ${{ steps.img.outputs.image }} \
+            apps/${{ matrix.app }}
+
+      - name: Push image (immutable SHA tag)
+        run: docker push ${{ steps.img.outputs.image }}
+
+      - name: Promote image in gitops (ArgoCD will reconcile)
+        run: |
+          IMAGE="${{ steps.img.outputs.image }}"
+          sed -i -E "s|^[[:space:]]*image:.*|          image: ${IMAGE}|" \
+            gitops/manifests/${{ matrix.app }}/deployment.yaml
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add gitops/manifests/${{ matrix.app }}/deployment.yaml
+          git commit -m "chore(${{ matrix.app }}): promote image ${GITHUB_SHA}"
+          git push

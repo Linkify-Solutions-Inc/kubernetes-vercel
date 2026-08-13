@@ -1,0 +1,21 @@
+# Child Application for the web-node tenant (static site, no HPA).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-node
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/manifests/web-node
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-web-node
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

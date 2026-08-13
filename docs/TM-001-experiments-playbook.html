@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TM-LNKFY-MP-001 · Mini-PaaS Experiments &amp; Operations Playbook</title>
+<style>
+:root{
+  --paper:#fbfaf7; --ink:#1a1d1f; --ink-2:#4b4f52; --rule:#c9c5bb; --rule-soft:#e4e1d8;
+  --olive:#4a5240; --olive-soft:#eef0e9;
+  --warn:#a4262c; --warn-bg:#faf0f0; --caut:#8a6408; --caut-bg:#faf6e9;
+  --note:#2a5b8f; --note-bg:#eef3f8; --chk:#2f6b3a; --chk-bg:#eef5ef;
+  --code-bg:#f1efe9; --code-ink:#24272a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#191b1d; --ink:#dcdad2; --ink-2:#a5a49c; --rule:#43464a; --rule-soft:#2e3134;
+    --olive:#9aa588; --olive-soft:#25291f;
+    --warn:#e08387; --warn-bg:#2c1d1e; --caut:#d4b35e; --caut-bg:#2a2415;
+    --note:#8fb4d9; --note-bg:#1c2733; --chk:#8cc79a; --chk-bg:#1c2b20;
+    --code-bg:#232527; --code-ink:#d3d1c9;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#191b1d; --ink:#dcdad2; --ink-2:#a5a49c; --rule:#43464a; --rule-soft:#2e3134;
+  --olive:#9aa588; --olive-soft:#25291f;
+  --warn:#e08387; --warn-bg:#2c1d1e; --caut:#d4b35e; --caut-bg:#2a2415;
+  --note:#8fb4d9; --note-bg:#1c2733; --chk:#8cc79a; --chk-bg:#1c2b20;
+  --code-bg:#232527; --code-ink:#d3d1c9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.65 Charter,Georgia,"Times New Roman",serif;}
+.page{max-width:880px;margin:0 auto;padding:2.5rem 1.5rem 6rem}
+h1,h2,h3,h4,.tm-label{font-family:"Avenir Next Condensed","Helvetica Neue","Arial Narrow",Arial,sans-serif}
+h1{font-size:1.9rem;line-height:1.2;text-wrap:balance;margin:.2rem 0}
+h2{font-size:1.35rem;margin:3rem 0 .8rem;padding-top:1.2rem;border-top:3px solid var(--ink);
+   text-transform:uppercase;letter-spacing:.04em}
+h3{font-size:1.08rem;margin:1.8rem 0 .5rem;color:var(--ink)}
+h4{font-size:.95rem;margin:1.2rem 0 .3rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}
+p{margin:.6rem 0;max-width:70ch}
+.tm-head{border:2px solid var(--ink);padding:1.2rem 1.4rem;display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:flex-start}
+.tm-label{font-size:.8rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-2)}
+.tm-num{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.95rem;text-align:right}
+.meta-table{font-size:.85rem;color:var(--ink-2);margin-top:.6rem}
+.meta-table td{padding:.05rem .8rem .05rem 0}
+.eyebrow{color:var(--olive);font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;
+  text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;margin:0 0 .2rem}
+pre{background:var(--code-bg);color:var(--code-ink);padding:.9rem 1rem;
+  overflow-x:auto;font:.83rem/1.55 ui-monospace,Menlo,Consolas,"Courier New",monospace;margin:.8rem 0}
+code{font:.86em ui-monospace,Menlo,Consolas,monospace;background:var(--code-bg);padding:.08em .35em;border-radius:2px}
+pre code{background:none;padding:0}
+.box{border:2px solid;margin:1.1rem 0;max-width:74ch}
+.box .bx-label{font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;
+  text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;font-weight:700;
+  padding:.3rem .8rem;border-bottom:1px solid}
+.box .bx-body{padding:.6rem .9rem;font-size:.93rem}
+.box .bx-body p{margin:.35rem 0}
+.warning{border-color:var(--warn);background:var(--warn-bg)}
+.warning .bx-label{color:var(--warn);border-color:var(--warn)}
+.caution{border-color:var(--caut);background:var(--caut-bg)}
+.caution .bx-label{color:var(--caut);border-color:var(--caut)}
+.note{border-color:var(--note);background:var(--note-bg)}
+.note .bx-label{color:var(--note);border-color:var(--note)}
+.checkpoint{border-color:var(--chk);background:var(--chk-bg)}
+.checkpoint .bx-label{color:var(--chk);border-color:var(--chk)}
+table.data{border-collapse:collapse;width:100%;font-size:.88rem;margin:.9rem 0}
+table.data th{font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;text-transform:uppercase;
+  letter-spacing:.05em;font-size:.78rem;text-align:left;border-bottom:2px solid var(--ink);padding:.4rem .6rem}
+table.data td{border-bottom:1px solid var(--rule-soft);padding:.45rem .6rem;vertical-align:top}
+.tblwrap{overflow-x:auto}
+.para-num{color:var(--olive);font-family:ui-monospace,Menlo,monospace;font-size:.85em;margin-right:.5em}
+ol.steps{counter-reset:step;padding-left:0;max-width:74ch}
+ol.steps>li{list-style:none;margin:.9rem 0;padding-left:2.6rem;position:relative}
+ol.steps>li::before{counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.1rem;width:1.7rem;height:1.7rem;border:2px solid var(--olive);
+  display:flex;align-items:center;justify-content:center;
+  font:700 .85rem "Avenir Next Condensed","Arial Narrow",Arial,sans-serif;color:var(--olive)}
+.toc{columns:2;gap:2.5rem;font-size:.92rem}
+.toc a{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--rule)}
+.toc div{margin:.25rem 0;break-inside:avoid}
+a{color:var(--note)}
+.dist{font-size:.8rem;color:var(--ink-2);border-top:1px solid var(--rule);margin-top:.8rem;padding-top:.5rem}
+.anatomy{border:1px solid var(--olive);background:var(--olive-soft);margin:.9rem 0;max-width:74ch}
+.anatomy .bx-label{color:var(--olive);border-color:var(--olive)}
+.anatomy dl{margin:.2rem 0;font-size:.9rem}
+.anatomy dt{font:.82rem ui-monospace,Menlo,Consolas,monospace;margin-top:.5rem}
+.anatomy dd{margin:.1rem 0 .2rem 1.2rem}
+@media (max-width:640px){.toc{columns:1}}
+@media print{body{font-size:11pt}.page{max-width:none}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="box warning"><div class="bx-label">Draft — not yet verified</div><div class="bx-body">
+<p>This manual describes the <em>intended</em> procedure from PRD LK-MP-PRD-001. It will be regenerated
+to match the verified build after the code is written and the platform is exercised. Treat every command
+as unverified until then. (Order changed by design: code first, documentation second.)</p>
+</div></div>
+
+<header class="tm-head">
+  <div>
+    <p class="tm-label">Technical Manual · Operator Procedure &amp; Experiments</p>
+    <h1>Mini-PaaS Platform<br>Experiments &amp; Operations Playbook</h1>
+    <table class="meta-table"><tbody>
+      <tr><td>Prepared for</td><td>Fatima Nawaz (operator)</td></tr>
+      <tr><td>System</td><td>Linkify kubernetes-vercel Mini-PaaS platform</td></tr>
+      <tr><td>Region</td><td><code>us-east-1</code> · cost ceiling $180/month</td></tr>
+      <tr><td>Basis</td><td>Implements PRD LK-MP-PRD-001 Rev A. Intended procedure — every command is yours to run and verify.</td></tr>
+    </tbody></table>
+  </div>
+  <div class="tm-num">
+    TM-LNKFY-MP-001<br>Rev A · 2026-08-13<br>
+    <span style="font-size:.8rem">Format per MIL-STD-38784 conventions</span>
+  </div>
+  <p class="dist">DISTRIBUTION: Linkify Solutions internal. Companion volume: TM-LNKFY-MP-002
+  (Technical Description &amp; Theory of Operation). Every command here satisfies a numbered requirement in
+  <code>docs/PRD.md</code>. Where this playbook hits a defect, fix the declaration in git — do not paper
+  over the live object.</p>
+</header>
+
+<h2 id="toc">Contents</h2>
+<div class="toc">
+  <div><a href="#ch1">1 — Introduction &amp; how to use this playbook</a></div>
+  <div><a href="#ch2">2 — Prerequisites &amp; workstation</a></div>
+  <div><a href="#ex1">3 — Exercise 1: Infrastructure up (Terraform)</a></div>
+  <div><a href="#ex2">4 — Exercise 2: Pipeline &amp; GitOps bootstrap</a></div>
+  <div><a href="#ex3">5 — Exercise 3: Deploy the catalog</a></div>
+  <div><a href="#ex4">6 — Exercise 4: Multi-tenancy experiments</a></div>
+  <div><a href="#ex5">7 — Exercise 5: Ingress, DNS &amp; TLS verification</a></div>
+  <div><a href="#ex6">8 — Exercise 6: Autoscaling &amp; observability lab</a></div>
+  <div><a href="#ex7">9 — Exercise 7: Rollback experiment</a></div>
+  <div><a href="#ex8">10 — Exercise 8: Teardown</a></div>
+  <div><a href="#appA">App. A — Troubleshooting quick reference</a></div>
+  <div><a href="#appB">App. B — Cost table</a></div>
+</div>
+
+<h2 id="ch1">Chapter 1 — Introduction</h2>
+
+<p><span class="para-num">1-1.</span><strong>Purpose.</strong> This playbook walks you through building,
+experimenting with, and tearing down the Mini-PaaS platform on AWS: a self-hosted deployment platform
+(specification <code>LK-MP-PRD-001</code>) where a git push becomes a live, scaled, isolated application —
+and then, at the end, a zero-cost AWS account again. It is an exercise, not a production service.</p>
+
+<p><span class="para-num">1-2.</span><strong>How to use this playbook.</strong> Work strictly in order —
+exercises are sequenced so that everything a step needs already exists. Three habits are mandatory:</p>
+<ol class="steps">
+  <li><strong>Run every CHECKPOINT.</strong> A green CHECKPOINT box after a step is not optional ceremony;
+  it is how you find out a silent failure happened <em>now</em> instead of three exercises later. If a
+  checkpoint's expected output doesn't match, stop and consult Appendix A.</li>
+  <li><strong>Never copy an identifier from an example.</strong> Anything shaped like
+  <code>vpc-0b9b…</code>, <code>subnet-…</code>, <code>&lt;account-id&gt;</code>, or an ARN with a random
+  suffix was generated for a build that does not exist yet. Discover your own with
+  <code>kubectl</code>, <code>terraform</code>, and <code>aws</code>.</li>
+  <li><strong>Run commands from the repository root</strong> (<code>~/linkify/kubernetes-vercel</code>
+  in this playbook). Relative paths like <code>-f infra/…</code> resolve from there.</li>
+</ol>
+
+<p><span class="para-num">1-3.</span><strong>What "experiments" means here.</strong> Every exercise ends
+with a <em>try-a-change</em> block: a deliberate, reversible variation (an instance type, a replica count,
+an HPA target, a network policy) plus what to observe. That is the actual point of this project — not
+clicking through a known-good script, but making a change and reading what the platform does.</p>
+
+<div class="box warning"><div class="bx-label">Warning — real money</div><div class="bx-body">
+<p>From Exercise 1 onward this procedure creates billable AWS resources — roughly $150–210/month while
+the platform runs, depending on node pricing (Appendix B breaks it down). The teardown in Exercise 8
+returns the account to baseline and is part of the procedure, not an afterthought. Never end a working
+session without either completing teardown or consciously deciding — out loud, to Aayush — that the
+platform stays up overnight.</p>
+</div></div>
+
+<div class="box note"><div class="bx-label">Note — when something breaks</div><div class="bx-body">
+<p>Something will break; that is the nature of the exercise. The debugging sequence is always the same:
+<em>read the actual error</em> (kubectl describe, events, logs, Terraform plan), locate which layer
+refused (admission? scheduler? controller? AWS API?), and fix the declaration in git rather than the live
+object. Appendix A maps the recurring symptoms to their causes.</p>
+</div></div>
+
+<h2 id="ch2">Chapter 2 — Prerequisites &amp; workstation</h2>
+
+<p><span class="para-num">2-1.</span><strong>Tools.</strong> Install the AWS CLI v2, Terraform, kubectl,
+Helm, git, the GitHub CLI (<code>gh</code>), and <code>jq</code>. All from official sources:</p>
+
+<pre><code># AWS CLI v2
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp &amp;&amp; sudo /tmp/aws/install
+
+# Terraform (current stable)
+curl -fsSL "https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip" \
+  -o /tmp/tf.zip &amp;&amp; unzip -q /tmp/tf.zip -d /tmp &amp;&amp; sudo mv /tmp/terraform /usr/local/bin/
+
+# kubectl (current stable)
+curl -fsSLO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -m 0755 kubectl /usr/local/bin/kubectl &amp;&amp; rm kubectl
+
+# Helm
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# git + GitHub CLI + jq
+sudo apt-get update &amp;&amp; sudo apt-get install -y git jq
+(which gh || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &amp;&amp; echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list &gt;/dev/null &amp;&amp; sudo apt-get update &amp;&amp; sudo apt-get install -y gh))</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 2-A</div><div class="bx-body">
+<pre><code>aws --version          # aws-cli/2.x
+terraform version      # v1.9.x
+kubectl version --client
+helm version --short   # v4.x (v3.15+ acceptable)
+git --version &amp;&amp; gh --version &amp;&amp; jq --version</code></pre>
+<p>Every command prints a version. Sign in to AWS and to GitHub before continuing
+(<code>gh auth login</code>).</p>
+</div></div>
+
+<div class="box anatomy"><div class="bx-label">Command anatomy — what each tool actually is</div><div class="bx-body"><dl>
+<dt>aws</dt><dd>A signed-HTTP client for every AWS API. Nothing is magic — every subcommand is a request you could have made with curl and a signature.</dd>
+<dt>terraform</dt><dd>The infrastructure compiler: <code>init</code> fetches providers, <code>plan</code> computes a diff between your code and reality, <code>apply</code> executes it. State lives in S3 (locked by DynamoDB) — it is the source of truth for what you own.</dd>
+<dt>kubectl</dt><dd>The Kubernetes API client. Everything it does is an HTTPS call to the cluster's API server, authenticated via your AWS identity (EKS).</dd>
+<dt>helm</dt><dd>A package manager for Kubernetes: a "chart" is templated YAML plus defaults; <code>install</code> renders it with your values and applies the result as one tracked release.</dd>
+<dt>gh</dt><dd>The GitHub CLI — used here to inspect Actions runs and the pipeline side of the loop.</dd>
+</dl></div></div>
+
+<p><span class="para-num">2-2.</span><strong>Repository.</strong></p>
+<pre><code>mkdir -p ~/linkify &amp;&amp; cd ~/linkify
+git clone https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+cd kubernetes-vercel</code></pre>
+
+<div class="box note"><div class="bx-label">Note — repository layout</div><div class="bx-body">
+<p><code>infra/</code> is Terraform (cluster, VPC, Karpenter, ECR, DNS, IAM).
+<code>apps/</code> is the five demo applications plus <code>loadgen</code>.
+<code>gitops/</code> is the ArgoCD source of truth (manifests, not kubectl).
+<code>docs/</code> holds this manual, the explainer volume, and the PRD.</p>
+</div></div>
+
+<h2 id="ex1">Chapter 3 — Exercise 1: Infrastructure up</h2>
+
+<p><span class="para-num">3-1.</span><strong>Objective.</strong> Provision the entire cluster — VPC,
+EKS, Karpenter, ECR repositories, IAM — from code, and point kubectl at it. This satisfies
+REQ-3.1-1 … 3.1-7.</p>
+
+<pre><code>cd infra
+terraform init
+terraform plan -out=plan.tfplan
+terraform apply plan.tfplan
+aws eks update-kubeconfig --region us-east-1 --name mini-paas
+kubectl get nodes
+kubectl get ns</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 3-A</div><div class="bx-body">
+<pre><code>kubectl get nodes      # every node Ready, private-IP only (no public IPs)
+kubectl get ns         # system namespaces only — NO app-* namespaces yet
+aws ecr describe-repositories --region us-east-1  # five mini-paas/* repos exist</code></pre>
+<p>If plan or apply fails: read the error, fix the declaration in <code>infra/</code>, re-apply. Do not
+"fix" state by hand.</p>
+</div></div>
+
+<div class="box anatomy"><div class="bx-label">Anatomy — what terraform apply just did</div><div class="bx-body"><dl>
+<dt>init</dt><dd>Downloads the AWS provider and configures the S3/DynamoDB state backend. No cloud changes.</dd>
+<dt>plan</dt><dd>Diffs your desired state (the .tf files) against real AWS and prints the full change set. This is your review gate — read it.</dd>
+<dt>apply</dt><dd>Executes the plan. The EKS module creates the cluster, and Karpenter becomes the thing that creates nodes on demand.</dd>
+<dt>IRSA</dt><dd>Every pod identity is an IAM role bound to a Kubernetes service account — no access keys inside the cluster. If a step ever tells you to paste an ARN into a secret, the design is wrong.</dd>
+</dl></div></div>
+
+<div class="box note"><div class="bx-label">Experiment 1-A — change the node size</div><div class="bx-body">
+<pre><code># in infra/karpenter.tf, set instance-type: t3.large
+cd infra &amp;&amp; terraform apply
+kubectl get nodes -o wide
+# observe the new node's capacity
+# set it back to t3.medium and re-apply</code></pre>
+<p>Why this matters: the node pool is the one dial that controls both cost and how quickly the
+autoscaling demo fires (Chapter 8). You are making the platform cheaper or more eager, on purpose.</p>
+</div></div>
+
+<h2 id="ex2">Chapter 4 — Exercise 2: Pipeline &amp; GitOps bootstrap</h2>
+
+<p><span class="para-num">4-1.</span><strong>Objective.</strong> Stand up ArgoCD, verify GitHub Actions
+authenticates to AWS via OIDC (no keys anywhere), and confirm the CI → GitOps loop end to end. Satisfies
+REQ-3.2-1 … 3.2-4 and REQ-3.3-1.</p>
+
+<pre><code>helm repo add argo https://argoproj.github.io/argo-helm
+helm install argocd argo/argo-cd -n argocd --create-namespace
+kubectl -n argocd get pods -w
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 4-A</div><div class="bx-body">
+<pre><code>kubectl -n argocd get pods        # argocd-server running
+kubectl -n argocd port-forward svc/argocd-server 8080:80
+# browser: https://localhost:8080  (admin + the password printed above)</code></pre>
+</div></div>
+
+<p><span class="para-num">4-2.</span><strong>OIDC check.</strong> The GitHub Actions role was created by
+Terraform. Make a trivial push to any app and watch the pipeline assume the role — with no stored
+credentials.</p>
+
+<pre><code>cd apps/api-node &amp;&amp; git commit --allow-empty -m "pipeline smoke test" &amp;&amp; git push
+gh run watch</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 4-B</div><div class="bx-body">
+<p>The run passes and each stage is visible: <strong>build → test → push to ECR (SHA tag) → update
+gitops manifest → push</strong>. If it fails at "assume role", the OIDC trust policy in Terraform is
+wrong — fix <code>infra/oidc.tf</code>, not the workflow.</p>
+</div></div>
+
+<div class="box anatomy"><div class="bx-label">Anatomy — the GitOps loop</div><div class="bx-body"><dl>
+<dt>GitHub Actions</dt><dd>Builds images and writes the desired state. It never touches the cluster directly.</dd>
+<dt>ECR</dt><dd>The image registry. Every push is tagged immutably with its commit SHA — the tag is the identity.</dd>
+<dt>gitops/ repo</dt><dd>The single source of truth for cluster workloads. Changing a manifest here is the "deploy".</dd>
+<dt>ArgoCD</dt><dd>The controller that reconciles: it polls git, compares to the live cluster, and syncs the difference. It <em>is</em> the deployment engine.</dd>
+</dl></div></div>
+
+<h2 id="ex3">Chapter 5 — Exercise 3: Deploy the catalog</h2>
+
+<p><span class="para-num">5-1.</span><strong>Objective.</strong> Bring up all five demo applications —
+each in its own namespace with quota, limits, and network policy — via GitOps, and reach them at live
+URLs. Satisfies REQ-3.5-1 … 3.5-6 and REQ-3.6-1 … 3.6-4.</p>
+
+<div class="tblwrap"><table class="data">
+<tr><th>App</th><th>Language</th><th>Route</th><th>Purpose</th><th>HPA</th></tr>
+<tr><td><code>api-node</code></td><td>Node/TS</td><td><code>api.&lt;domain&gt;</code></td><td>Primary scaling demo</td><td>50% CPU</td></tr>
+<tr><td><code>web-node</code></td><td>Node/TS</td><td><code>web.&lt;domain&gt;</code></td><td>Static serving, no scaling</td><td>—</td></tr>
+<tr><td><code>worker-node</code></td><td>Node/TS</td><td><code>worker.&lt;domain&gt;</code></td><td>Background/queue shape</td><td>50% CPU</td></tr>
+<tr><td><code>py-api</code></td><td>Python/FastAPI</td><td><code>py.&lt;domain&gt;</code></td><td>Language diversity</td><td>50% CPU</td></tr>
+<tr><td><code>go-api</code></td><td>Go</td><td><code>go.&lt;domain&gt;</code></td><td>Language diversity</td><td>50% CPU</td></tr>
+</table></div>
+
+<pre><code>kubectl apply -f gitops/bootstrap/app-of-apps.yaml
+argocd app list
+kubectl get ns
+kubectl get pods -A</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 5-A</div><div class="bx-body">
+<pre><code>curl -s https://api.&lt;ingress-domain&gt;/     # 200 + app response
+curl -s https://web.&lt;ingress-domain&gt;/     # 200
+curl -s https://worker.&lt;ingress-domain&gt;/  # 200
+curl -s https://py.&lt;ingress-domain&gt;/      # 200
+curl -s https://go.&lt;ingress-domain&gt;/      # 200</code></pre>
+<p>ArgoCD shows five healthy Applications; five <code>app-*</code> namespaces exist. This is the "whole
+stack works" moment — a push, no manual kubectl, and five live URLs.</p>
+</div></div>
+
+<div class="box note"><div class="bx-label">Experiment 3-A — change a replica count</div><div class="bx-body">
+<pre><code># in gitops/apps/api-node/deployment.yaml, set replicas: 3
+git commit -am "api-node: 3 replicas" &amp;&amp; git push
+argocd app sync app-api-node
+kubectl get pods -n app-api-node -w</code></pre>
+<p>ArgoCD applies the change. Then set it back to 1 — the platform is declarative: the manifest, not
+your memory, is the truth.</p>
+</div></div>
+
+<h2 id="ex4">Chapter 6 — Exercise 4: Multi-tenancy experiments</h2>
+
+<p><span class="para-num">6-1.</span><strong>Objective.</strong> Prove the isolation layer works: quotas
+reject, limits constrain, network policies block. Satisfies REQ-3.4-1 … 3.4-5.</p>
+
+<pre><code>kubectl get resourcequota -n app-api-node -o yaml
+kubectl get limitrange -n app-api-node
+kubectl get networkpolicy -n app-api-node</code></pre>
+
+<div class="box note"><div class="bx-label">Experiment 4-A — push a workload past its quota</div><div class="bx-body">
+<pre><code>kubectl -n app-api-node run oversized --image=busybox --restart=Never \
+  --limits='cpu=2,memory=2Gi' --command -- sh -c "sleep 3600"
+kubectl describe pod oversized -n app-api-node
+kubectl get events -n app-api-node | tail -20</code></pre>
+<p>The pod is refused. Read the <em>events</em>, not the logs — quota rejection is diagnosed in
+<code>kubectl describe</code>, exactly as it is in production.</p>
+</div></div>
+
+<div class="box note"><div class="bx-label">Experiment 4-B — cross-tenant traffic is blocked</div><div class="bx-body">
+<pre><code># from inside api-node's pod, try to reach go-api in ITS namespace
+kubectl exec -n app-api-node deploy/api-node -- \
+  wget -qO- --timeout=3 http://go-api.app-go-api.svc.cluster.local/ || echo "BLOCKED"</code></pre>
+<p>The NetworkPolicy (default-deny, allow same-namespace, allow ingress) stops it. Same-namespace traffic
+still works — isolation without breaking your own app.</p>
+</div></div>
+
+<div class="box caution"><div class="bx-label">Caution — namespace deletion is irreversible</div><div class="bx-body">
+<p>Deleting a namespace deletes everything in it with no undo. When you clean up experiments, delete the
+<em>pods/jobs you created</em>, not the namespace. Verify the target namespace before deleting anything.</p>
+</div></div>
+
+<h2 id="ex5">Chapter 7 — Exercise 5: Ingress, DNS &amp; TLS verification</h2>
+
+<p><span class="para-num">7-1.</span><strong>Objective.</strong> Confirm host-based routing through the
+ALB, wildcard DNS, and (optionally) TLS. Satisfies REQ-3.6-1 … 3.6-4.</p>
+
+<pre><code>kubectl get ingress -A
+kubectl get svc -n kube-system | grep -i alb
+nslookup api.&lt;ingress-domain&gt;
+curl -sI https://api.&lt;ingress-domain&gt;/</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 5-A</div><div class="bx-body">
+<p>Five host rules exist in the ingress controller; all five subdomains resolve to the ALB and return
+HTTP 200/301. If DNS is empty, the wildcard record (nip.io/sslip.io) was not pointed at the ALB
+address — fix the record, not the ingress.</p>
+</div></div>
+
+<div class="box note"><div class="bx-label">Note — TLS is optional here</div><div class="bx-body">
+<p>With a real domain, cert-manager + Let's Encrypt issues certs (REQ-3.6-3). With the default
+nip.io/sslip.io wildcard, HTTPS via self-signed/HTTP is acceptable for the exercise — do not let TLS
+become the thing that eats a week.</p>
+</div></div>
+
+<h2 id="ex6">Chapter 8 — Exercise 6: Autoscaling &amp; observability lab</h2>
+
+<p><span class="para-num">8-1.</span><strong>Objective.</strong> The heart of the project: under
+generated load, HPA scales pods and Karpenter scales nodes — and you watch both happen on a Grafana
+dashboard. Satisfies REQ-3.7-1 … 3.7-5 and REQ-3.8-1 … 3.8-4.</p>
+
+<p><span class="para-num">8-2.</span><strong>Bring up the metrics stack.</strong></p>
+<pre><code>helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install kube-prom prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
+kubectl -n monitoring get pods
+kubectl -n monitoring port-forward svc/kube-prom-grafana 3000:80
+# browser: http://localhost:3000  (admin / admin)</code></pre>
+
+<p><span class="para-num">8-3.</span><strong>Baseline.</strong></p>
+<pre><code>kubectl get hpa -A
+kubectl get nodes</code></pre>
+
+<p><span class="para-num">8-4.</span><strong>Drive load at <code>api-node</code>.</strong></p>
+<pre><code>kubectl apply -f apps/loadgen/job.yaml
+kubectl get hpa -n app-api-node -w
+# in another terminal:
+kubectl get nodes -w</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 8-A — the scaling proof</div><div class="bx-body">
+<p><strong>Pod level:</strong> <code>api-node</code> replicas climb past 1 as its CPU crosses the 50%
+target (HPA). <strong>Node level:</strong> a new Karpenter-provisioned node appears as the pods no
+longer fit. On Grafana, both appear in real time. Stop the load (<code>kubectl delete job loadgen</code>)
+and watch both autoscalers consolidate back to baseline.</p>
+</div></div>
+
+<div class="box note"><div class="bx-label">Experiment 6-A — retune the HPA and feel the difference</div><div class="bx-body">
+<pre><code># in gitops/apps/api-node/hpa.yaml: targetAverageUtilization: 30, min 1, max 8
+git commit -am "api-node: HPA target 30%" &amp;&amp; git push
+# rerun the load; the scale-up should trigger faster and climb higher</code></pre>
+<p>The target percentage is the sensitivity dial. Try 30%, then 70%, and compare how quickly and how far
+the platform scales. This is REQ-3.7-5 — you can now <em>explain</em> a scale event from metrics, not
+just watch one.</p>
+</div></div>
+
+<div class="box warning"><div class="bx-label">Warning — Karpenter that never scales down</div><div class="bx-body">
+<p>A load test left running keeps the cluster scaled out and the bill climbing. Every scaling session
+ends with load stopped and both HPA and Karpenter back at baseline. Never end a session mid-load.</p>
+</div></div>
+
+<h2 id="ex7">Chapter 9 — Exercise 7: Rollback experiment</h2>
+
+<p><span class="para-num">9-1.</span><strong>Objective.</strong> Deliberately ship a broken release, watch
+it fail, and recover with git — the undo button. Satisfies REQ-3.9-1 … 3.9-3.</p>
+
+<p><span class="para-num">9-2.</span><strong>Break it.</strong></p>
+<pre><code># in apps/api-node/... point the image tag at a tag that does not exist
+# e.g. &lt;account-id&gt;.dkr.ecr.us-east-1.amazonaws.com/api-node:does-not-exist
+git commit -am "api-node: (deliberately broken image)" &amp;&amp; git push
+argocd app sync app-api-node
+kubectl get pods -n app-api-node   # ImagePullBackOff — read the events</code></pre>
+
+<p><span class="para-num">9-3.</span><strong>Fix it with git.</strong></p>
+<pre><code>git revert HEAD --no-edit
+git push
+argocd app sync app-api-node
+kubectl get pods -n app-api-node -w</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 9-A</div><div class="bx-body">
+<p>The application returns to healthy within 10 minutes of the revert. The image tag, git history, and
+ArgoCD sync all tell the same story — explain that story in one paragraph (this is also the final step
+of the end-to-end demonstration in PRD Appendix D).</p>
+</div></div>
+
+<h2 id="ex8">Chapter 10 — Exercise 8: Teardown</h2>
+
+<p><span class="para-num">10-1.</span><strong>Objective.</strong> Destroy everything cleanly, in the
+order that prevents ArgoCD from fighting the destroy. Satisfies REQ-3.10-1 … 3.10-4.</p>
+
+<pre><code># 1. stop the reconciliation (ArgoCD must not recreate what Terraform deletes)
+kubectl delete -f gitops/bootstrap/app-of-apps.yaml
+helm uninstall argocd -n argocd
+
+# 2. remove namespaces and workloads
+kubectl delete ns monitoring
+
+# 3. destroy the infrastructure
+cd infra &amp;&amp; terraform destroy</code></pre>
+
+<div class="box checkpoint"><div class="bx-label">Checkpoint 10-A — the clean-slate proof</div><div class="bx-body">
+<pre><code>aws ec2 describe-instances --region us-east-1 \
+  --filters "Name=tag:kubernetes.io/cluster/mini-paas,Values=owned" \
+  | jq '.Reservations | length'     # 0
+aws ecr describe-repositories --region us-east-1 | jq '.repositories | length'  # 0
+# AWS Cost Explorer: daily cost returns to baseline</code></pre>
+</div></div>
+
+<div class="box warning"><div class="bx-label">Warning — the cost alarm is not a suggestion</div><div class="bx-body">
+<p>If the budget alarm fires, stop the load test and scale down or destroy. This is an exercise; a
+surprise AWS bill is the one failure that cannot be rolled back.</p>
+</div></div>
+
+<h2 id="appA">Appendix A — Troubleshooting quick reference</h2>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Symptom</th><th>Layer that refused</th><th>Fix</th></tr>
+<tr><td><code>ImagePullBackOff</code> / <code>ErrImagePull</code></td><td>Registry or pull auth</td><td>Check the tag exists in ECR; check the pod's service account has ECR pull (IRSA).</td></tr>
+<tr><td>Pod <code>Pending</code> forever</td><td>Scheduler / Karpenter / quota</td><td><code>kubectl describe pod</code> — if "0/2 nodes available", Karpenter hasn't provisioned; if quota, read the namespace quota.</td></tr>
+<tr><td>Quota rejected but no pod</td><td>Admission (ResourceQuota/LimitRange)</td><td>Read <code>kubectl get events -n &lt;ns&gt;</code> — the rejection is an event, not a log.</td></tr>
+<tr><td>App unreachable at URL</td><td>Ingress / DNS / ALB</td><td>Split the problem: is <code>nslookup</code> right (DNS)? Is the ingress host rule right? Does <code>kubectl get svc</code> show the ALB?</td></tr>
+<tr><td>Actions run fails at "assume role"</td><td>OIDC trust policy</td><td>Fix <code>infra/oidc.tf</code> — never add static keys.</td></tr>
+<tr><td>ArgoCD OutOfSync after manual change</td><td>Drift</td><td>Expected. <code>argocd app sync</code> — or delete the live object and watch it return.</td></tr>
+<tr><td>Nodes exist but never downscale</td><td>Karpenter consolidation</td><td>Stop the load; wait for the consolidation window; check <code>kubectl get nodes</code>. If the bill climbs, see the cost warning.</td></tr>
+</table></div>
+
+<h2 id="appB">Appendix B — Cost table</h2>
+
+<p>Rough monthly cost while the platform runs. EKS control plane is flat regardless of node size.</p>
+
+<div class="tblwrap"><table class="data">
+<tr><th>Component</th><th>On-demand</th><th>Spot nodes</th></tr>
+<tr><td>EKS control plane</td><td>≈ $73</td><td>≈ $73</td></tr>
+<tr><td>3 × t3.medium worker nodes</td><td>≈ $90</td><td>≈ $30</td></tr>
+<tr><td>NAT gateway (private nodes)</td><td>≈ $32</td><td>≈ $32</td></tr>
+<tr><td>ALB + data</td><td>≈ $20</td><td>≈ $20</td></tr>
+<tr><td>ECR storage</td><td>≈ $1</td><td>≈ $1</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>≈ $216</strong></td><td><strong>≈ $156</strong></td></tr>
+</table></div>
+
+<div class="box note"><div class="bx-label">Note — staying under the $180 ceiling</div><div class="bx-body">
+<p>On-demand nodes push the total past the PRD ceiling ($180). To stay under: use spot nodes for the
+node pool, drop to two nodes, or replace the NAT gateway with a single NAT instance (≈ $10/mo) for the
+exercise. Teardown (Exercise 8) returns everything to baseline.</p>
+</div></div>
+
+<p class="dist">End of document — TM-LNKFY-MP-001 Rev A · 2026-08-13 · Companion: TM-LNKFY-MP-002.</p>
+
+</div>
+</body>
+</html>

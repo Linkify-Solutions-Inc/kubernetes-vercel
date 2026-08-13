@@ -1,0 +1,35 @@
+# Observability stack (REQ-3.8): Prometheus + Grafana via kube-prometheus-stack,
+# delivered as an ArgoCD Helm Application — monitoring is just another tenant.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: kube-prometheus-stack
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: "62.7.0"
+    helm:
+      releaseName: kube-prom
+      valuesObject:
+        prometheus:
+          prometheusSpec:
+            # No PVCs — the exercise is disposable.
+            storageSpec: null
+        alertmanager:
+          enabled: false
+        grafana:
+          adminPassword: admin
+          persistence:
+            enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

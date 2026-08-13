@@ -1,0 +1,19 @@
+{
+  "name": "api-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mini-PaaS primary scaling demo (Node/TS API)",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}

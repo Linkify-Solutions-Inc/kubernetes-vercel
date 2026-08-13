@@ -1,0 +1,23 @@
+# Parent ArgoCD Application ("App-of-Apps"). It deploys the per-app child
+# Applications found in gitops/apps/ (one Application CR per demo app).
+#
+# Apply once after ArgoCD is installed (see gitops/bootstrap/README.md):
+#   kubectl apply -f gitops/bootstrap/app-of-apps.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mini-paas-apps
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

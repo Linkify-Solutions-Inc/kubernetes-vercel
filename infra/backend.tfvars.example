@@ -1,0 +1,5 @@
+bucket         = "linkify-mini-paas-tfstate-1712345678"
+key            = "infra/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "linkify-mini-paas-tfstate-lock"
+encrypt        = true

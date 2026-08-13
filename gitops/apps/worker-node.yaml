@@ -1,0 +1,21 @@
+# Child Application for the worker-node tenant (background/queue worker).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: worker-node
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/manifests/worker-node
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-worker-node
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

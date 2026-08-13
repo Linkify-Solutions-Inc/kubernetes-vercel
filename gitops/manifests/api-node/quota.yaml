@@ -1,0 +1,14 @@
+# ResourceQuota for the tenant (REQ-3.4-2). Generous enough for the HPA demo
+# (8 replicas + margin) but a real, visible bound.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: app-api-node
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+    pods: "12"

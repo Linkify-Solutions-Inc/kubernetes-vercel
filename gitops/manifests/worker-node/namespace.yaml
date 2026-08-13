@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-worker-node
+  labels:
+    tenant: worker-node

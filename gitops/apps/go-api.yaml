@@ -1,0 +1,21 @@
+# Child Application for the go-api tenant (Go API).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: go-api
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/manifests/go-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-go-api
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

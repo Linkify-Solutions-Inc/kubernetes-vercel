@@ -1,0 +1,43 @@
+# Load generator (REQ-3.5-5): a Job that drives sustained CPU load at api-node
+# over the in-cluster Service (HTTP, no TLS friction).
+#
+#   kubectl apply -f apps/loadgen/job.yaml
+#   kubectl get hpa -n app-api-node -w      # watch replicas climb
+#   kubectl get nodes -w                     # watch Karpenter add a node
+#
+# Stop it when done:  kubectl delete job loadgen
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen
+  namespace: default
+spec:
+  completions: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: loadgen
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "loadgen: 8 workers hammering api-node (1.5s CPU burn each)..."
+              for i in $(seq 1 8); do
+                (
+                  while true; do
+                    wget -qO- \
+                      "http://api-node.app-api-node.svc.cluster.local/work?ms=1500" \
+                      >/dev/null 2>&1
+                  done
+                ) &
+              done
+              wait
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

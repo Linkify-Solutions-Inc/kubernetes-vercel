@@ -1,0 +1,18 @@
+# LimitRange for the tenant (REQ-3.4-2): per-pod defaults and max.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: limits
+  namespace: app-api-node
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 128Mi
+      max:
+        cpu: "2"
+        memory: 2Gi

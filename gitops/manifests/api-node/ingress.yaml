@@ -1,0 +1,26 @@
+# Host-based routing (REQ-3.6). __INGRESS_DOMAIN__ is substituted once after the
+# ALB exists (see gitops/bootstrap/README.md). All five apps share one ALB
+# (group.name) to keep cost down.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-node
+  namespace: app-api-node
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: mini-paas
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+spec:
+  ingressClassName: alb
+  rules:
+    - host: api.__INGRESS_DOMAIN__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-node
+                port:
+                  name: http

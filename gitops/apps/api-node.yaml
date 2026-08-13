@@ -1,0 +1,22 @@
+# Child Application for the api-node tenant. Source = gitops/manifests/api-node,
+# which holds namespace, quota, limits, policy, deployment, service, ingress, hpa.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-node
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/manifests/api-node
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-api-node
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
