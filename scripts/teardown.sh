@@ -28,33 +28,38 @@ if kubectl get application -n argocd >/dev/null 2>&1; then
 fi
 
 echo ">> $(ts) [2/6] delete every non-system namespace (catches experiment leftovers)"
+# Capture the list to a file first: under `set -o pipefail` a pipeline that
+# selects nothing (grep exit 1) would kill the whole script.
 kubectl get ns -o jsonpath='{.items[*].metadata.name}' 2>/dev/null \
   | tr ' ' '\n' \
   | grep -vE '^(kube-system|kube-public|kube-node-lease|default)$' \
-  | while read -r ns; do
-      [ -z "$ns" ] && continue
-      echo "    - deleting namespace: $ns ($(ts))"
+  > /tmp/minipaas-teardown-ns.txt || true
 
-      # Clear resource finalizers that can block namespace deletion — the ALB
-      # controller's group finalizer on Ingress is the classic one. Without
-      # this, `kubectl delete ns` hangs in Terminating forever.
-      kubectl -n "$ns" get ingress -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null \
-        | while read -r ing; do
-            [ -n "$ing" ] && kubectl patch ingress "$ing" -n "$ns" \
-              --type merge -p '{"metadata":{"finalizers":null}}' >/dev/null 2>&1 || true
-          done
-      kubectl -n "$ns" get svc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null \
-        | while read -r svc; do
-            [ -n "$svc" ] && kubectl patch svc "$svc" -n "$ns" \
-              --type merge -p '{"metadata":{"finalizers":null}}' >/dev/null 2>&1 || true
-          done
+while read -r ns; do
+  [ -z "$ns" ] && continue
+  echo "    - deleting namespace: $ns ($(ts))"
 
-      # Bound the wait so a stuck namespace can't hang the whole teardown.
-      kubectl delete ns "$ns" --ignore-not-found --timeout=120s >/dev/null 2>&1 || true
+  # Clear resource finalizers that can block namespace deletion — the ALB
+  # controller's group finalizer on Ingress is the classic one. Without
+  # this, `kubectl delete ns` hangs in Terminating forever.
+  kubectl -n "$ns" get ingress -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null \
+    | while read -r ing; do
+        [ -n "$ing" ] && kubectl patch ingress "$ing" -n "$ns" \
+          --type merge -p '{"metadata":{"finalizers":null}}' >/dev/null 2>&1 || true
+      done
+  kubectl -n "$ns" get svc -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null \
+    | while read -r svc; do
+        [ -n "$svc" ] && kubectl patch svc "$svc" -n "$ns" \
+          --type merge -p '{"metadata":{"finalizers":null}}' >/dev/null 2>&1 || true
+      done
 
-      # If it's still Terminating after the timeout, force-clear its finalizers.
-      kubectl patch ns "$ns" --type merge -p '{"metadata":{"finalizers":null}}' >/dev/null 2>&1 || true
-    done
+  # Bound the wait so a stuck namespace can't hang the whole teardown.
+  kubectl delete ns "$ns" --ignore-not-found --timeout=120s >/dev/null 2>&1 || true
+
+  # If it's still Terminating after the timeout, force-clear its finalizers.
+  kubectl patch ns "$ns" --type merge -p '{"metadata":{"finalizers":null}}' >/dev/null 2>&1 || true
+done < /tmp/minipaas-teardown-ns.txt
+rm -f /tmp/minipaas-teardown-ns.txt
 
 echo ">> $(ts) [3/6] destroy infrastructure via Terraform (the bill killer)"
 cd "$(dirname "$0")/../infra"
