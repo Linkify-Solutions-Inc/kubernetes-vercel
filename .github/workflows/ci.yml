@@ -56,6 +56,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug OIDC token claims (TEMPORARY)
+        run: |
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "=== TOKEN CLAIMS ==="
+          echo "$TOKEN" | python3 -c "import sys,base64,json; t=sys.stdin.read().strip().split('.')[1]; t+='='*(-len(t)%4); print(json.dumps(json.loads(base64.urlsafe_b64decode(t)), indent=2))"
+
       - name: Configure AWS via OIDC (no keys)
         uses: aws-actions/configure-aws-credentials@v4
         with:
