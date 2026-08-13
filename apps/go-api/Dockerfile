@@ -10,4 +10,4 @@ COPY --from=build /out/go-api /usr/local/bin/go-api
 USER appuser
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/go-api"]
-# build 2026-08-13 v3
+# build 2026-08-13 v4
