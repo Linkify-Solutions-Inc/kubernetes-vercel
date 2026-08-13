@@ -63,11 +63,26 @@ rm -f /tmp/minipaas-teardown-ns.txt
 
 echo ">> $(ts) [3/6] destroy infrastructure via Terraform (the bill killer)"
 cd "$(dirname "$0")/../infra"
-# Stream the FULL destroy output live so you can see it progressing
-# (EKS destroy takes ~15-25 min). `tee` logs a copy for later inspection;
-# `|| true` lets the residual sweep in [4/6] catch anything left behind.
-terraform destroy -auto-approve -no-color 2>&1 \
-  | tee /tmp/minipaas-terraform-destroy.log || true
+# Stream the FULL destroy output live so you can see it progressing (EKS
+# destroy takes ~15-25 min). A Ctrl-C mid-destroy leaves the state lock held;
+# detect that, force-unlock, and retry once. DESTROY_OK gates phase 5.
+DESTROY_OK=0
+run_destroy() {
+  if terraform destroy -auto-approve -no-color 2>&1 | tee /tmp/minipaas-terraform-destroy.log; then
+    DESTROY_OK=1
+  else
+    LOCK_ID=$(grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' \
+      /tmp/minipaas-terraform-destroy.log 2>/dev/null | head -1)
+    if [ -n "$LOCK_ID" ]; then
+      echo "    - $(ts) stale state lock ($LOCK_ID) from an interrupted run — force-unlocking and retrying"
+      terraform force-unlock -force "$LOCK_ID" >/dev/null 2>&1 || true
+      if terraform destroy -auto-approve -no-color 2>&1 | tee /tmp/minipaas-terraform-destroy.log; then
+        DESTROY_OK=1
+      fi
+    fi
+  fi
+}
+run_destroy
 
 echo ">> $(ts) [4/6] residual sweep — things experiments could have created outside Terraform"
 REGION="${AWS_REGION:-us-east-1}"
@@ -103,7 +118,11 @@ aws sqs list-queues --region "$REGION" --output text 2>/dev/null \
   | while read -r q; do echo "      - $(ts) deleting $q"; aws sqs delete-queue --queue-url "$q" >/dev/null 2>&1 || true; done
 
 echo ">> $(ts) [5/6] remove the state backend (S3 + DynamoDB), read from backend.tfvars"
-if [ -f backend.tfvars ]; then
+# Only remove the state if the destroy actually completed — otherwise the
+# EKS cluster/VPC/IAM stay orphaned and billable with no state to destroy them.
+if [ "$DESTROY_OK" != "1" ]; then
+  echo "    - $(ts) terraform destroy did NOT complete — KEEPING the state backend so a re-run can finish the destroy."
+elif [ -f backend.tfvars ]; then
   BUCKET=$(awk -F'"' '/^bucket/{print $2}' backend.tfvars)
   TABLE=$(awk -F'"' '/dynamodb_table/{print $2}' backend.tfvars)
   if [ -n "$BUCKET" ]; then
