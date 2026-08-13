@@ -117,6 +117,27 @@ aws sqs list-queues --region "$REGION" --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
   | while read -r q; do echo "      - $(ts) deleting $q"; aws sqs delete-queue --queue-url "$q" >/dev/null 2>&1 || true; done
 
+echo "    Security groups (non-default, leftover in the VPC — e.g. the ALB controller's shared SG):"
+# Plain for-loop, not a grep|while pipeline: under `set -o pipefail` a grep that
+# selects nothing would kill the whole script (the phase-2 landmine).
+VPC_ID=$(terraform output -raw vpc_id 2>/dev/null || echo "")
+if [ -n "$VPC_ID" ]; then
+  SGS=$(aws ec2 describe-security-groups --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC_ID" \
+    --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text 2>/dev/null || true)
+  for sg in $SGS; do
+    echo "      - $(ts) deleting SG $sg"
+    aws ec2 delete-security-group --region "$REGION" --group-id "$sg" >/dev/null 2>&1 || true
+  done
+fi
+
+# If the destroy failed, the sweep above removed the blockers (leftover ENIs,
+# SGs) — retry once so the VPC can finish tearing down.
+if [ "$DESTROY_OK" != "1" ]; then
+  echo "    - $(ts) destroy did not complete earlier — retrying now that leftover SG/ENI blockers are gone"
+  run_destroy
+fi
+
 echo ">> $(ts) [5/6] remove the state backend (S3 + DynamoDB), read from backend.tfvars"
 # Only remove the state if the destroy actually completed — otherwise the
 # EKS cluster/VPC/IAM stay orphaned and billable with no state to destroy them.
