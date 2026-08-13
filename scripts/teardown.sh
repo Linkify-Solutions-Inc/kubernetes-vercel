@@ -14,6 +14,7 @@ set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-streaming-admin}"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
+REGION="${AWS_REGION:-us-east-1}"
 
 echo "================================================"
 echo " FULL TEARDOWN — every experiment resource goes"
@@ -61,8 +62,33 @@ while read -r ns; do
 done < /tmp/minipaas-teardown-ns.txt
 rm -f /tmp/minipaas-teardown-ns.txt
 
-echo ">> $(ts) [3/6] destroy infrastructure via Terraform (the bill killer)"
+echo ">> $(ts) [3/6] pre-clean destroy blockers, then destroy infrastructure via Terraform"
 cd "$(dirname "$0")/../infra"
+# Pre-clean, BEFORE the destroy: the ALB controller and Karpenter create
+# resources terraform cannot see (the ALB "Shared Backend" SG, Karpenter-
+# orphaned EC2 instances). Left alone they block the destroy's last step —
+# VPC deletion — and force a slow second pass. Remove them up front so one
+# destroy pass completes. Plain for-loops, not grep|while pipelines: under
+# `set -o pipefail` a grep that selects nothing would kill the script.
+VPC_ID=$(terraform output -raw vpc_id 2>/dev/null || echo "")
+if [ -n "$VPC_ID" ]; then
+  echo "    - $(ts) terminating stray instances in the VPC (Karpenter-orphaned nodes block SG deletion)"
+  IDS=$(aws ec2 describe-instances --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC_ID" "Name=instance-state-name,Values=running,pending,stopping,stopped" \
+    --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null || true)
+  for id in $IDS; do
+    echo "      - $(ts) terminating $id"
+    aws ec2 terminate-instances --region "$REGION" --instance-ids "$id" >/dev/null 2>&1 || true
+  done
+  echo "    - $(ts) deleting non-default SGs in the VPC (e.g. the ALB controller's shared SG)"
+  SGS=$(aws ec2 describe-security-groups --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC_ID" \
+    --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text 2>/dev/null || true)
+  for sg in $SGS; do
+    echo "      - $(ts) deleting SG $sg"
+    aws ec2 delete-security-group --region "$REGION" --group-id "$sg" >/dev/null 2>&1 || true
+  done
+fi
 # Stream the FULL destroy output live so you can see it progressing (EKS
 # destroy takes ~15-25 min). A Ctrl-C mid-destroy leaves the state lock held;
 # detect that, force-unlock, and retry once. DESTROY_OK gates phase 5.
@@ -85,37 +111,39 @@ run_destroy() {
 run_destroy
 
 echo ">> $(ts) [4/6] residual sweep — things experiments could have created outside Terraform"
-REGION="${AWS_REGION:-us-east-1}"
 
+# Each sweep block ends with `|| true`: under `set -o pipefail` a `grep -v` that
+# selects nothing (a fully clean account) exits 1 and would kill the whole
+# script before phase 5 could remove the state backend.
 echo "    EC2 instances (all):"
 aws ec2 describe-instances --region "$REGION" --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
-  | while read -r id; do echo "      - $(ts) terminating $id"; aws ec2 terminate-instances --region "$REGION" --instance-ids "$id" >/dev/null 2>&1 || true; done
+  | while read -r id; do echo "      - $(ts) terminating $id"; aws ec2 terminate-instances --region "$REGION" --instance-ids "$id" >/dev/null 2>&1 || true; done || true
 
 echo "    EBS volumes (available / unattached):"
 aws ec2 describe-volumes --region "$REGION" --filters Name=status,Values=available --query 'Volumes[].VolumeId' --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
-  | while read -r vol; do echo "      - $(ts) deleting $vol"; aws ec2 delete-volume --region "$REGION" --volume-id "$vol" >/dev/null 2>&1 || true; done
+  | while read -r vol; do echo "      - $(ts) deleting $vol"; aws ec2 delete-volume --region "$REGION" --volume-id "$vol" >/dev/null 2>&1 || true; done || true
 
 echo "    Elastic IPs (unassociated):"
 aws ec2 describe-addresses --region "$REGION" --filters Name=association-id,Values='' --query 'Addresses[].AllocationId' --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
-  | while read -r eip; do echo "      - $(ts) releasing $eip"; aws ec2 release-address --region "$REGION" --allocation-id "$eip" >/dev/null 2>&1 || true; done
+  | while read -r eip; do echo "      - $(ts) releasing $eip"; aws ec2 release-address --region "$REGION" --allocation-id "$eip" >/dev/null 2>&1 || true; done || true
 
 echo "    Load balancers (ALB/NLB):"
 aws elbv2 describe-load-balancers --region "$REGION" --query 'LoadBalancers[].LoadBalancerArn' --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
-  | while read -r lb; do echo "      - $(ts) deleting $lb"; aws elbv2 delete-load-balancer --region "$REGION" --load-balancer-arn "$lb" >/dev/null 2>&1 || true; done
+  | while read -r lb; do echo "      - $(ts) deleting $lb"; aws elbv2 delete-load-balancer --region "$REGION" --load-balancer-arn "$lb" >/dev/null 2>&1 || true; done || true
 
 echo "    ECR repositories:"
 aws ecr describe-repositories --region "$REGION" --query 'repositories[].repositoryName' --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
-  | while read -r repo; do echo "      - $(ts) deleting $repo"; aws ecr delete-repository --region "$REGION" --repository-name "$repo" --force >/dev/null 2>&1 || true; done
+  | while read -r repo; do echo "      - $(ts) deleting $repo"; aws ecr delete-repository --region "$REGION" --repository-name "$repo" --force >/dev/null 2>&1 || true; done || true
 
 echo "    SQS queues:"
 aws sqs list-queues --region "$REGION" --output text 2>/dev/null \
   | tr '\t' '\n' | grep -v '^$' \
-  | while read -r q; do echo "      - $(ts) deleting $q"; aws sqs delete-queue --queue-url "$q" >/dev/null 2>&1 || true; done
+  | while read -r q; do echo "      - $(ts) deleting $q"; aws sqs delete-queue --queue-url "$q" >/dev/null 2>&1 || true; done || true
 
 echo "    Security groups (non-default, leftover in the VPC — e.g. the ALB controller's shared SG):"
 # Plain for-loop, not a grep|while pipeline: under `set -o pipefail` a grep that
