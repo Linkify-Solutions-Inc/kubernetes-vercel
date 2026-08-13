@@ -531,6 +531,7 @@ surprise AWS bill is the one failure that cannot be rolled back.</p>
 <tr><td>Ingress exists but no ALB is created</td><td>Subnet discovery</td><td>The ALB controller needs public subnets tagged <code>kubernetes.io/role/elb</code>. It is set in <code>infra/main.tf</code> (<code>public_subnet_tags</code>).</td></tr>
 <tr><td>Pod fails: <em>runAsNonRoot and image has non-numeric user</em></td><td>Container user</td><td><code>runAsNonRoot: true</code> needs a numeric UID. Use <code>USER 1000</code> (node) / <code>USER 10001</code> (go) in the Dockerfiles, not <code>USER node</code>/<code>appuser</code>.</td></tr>
 <tr><td>HPA: <em>unable to get cpu utilization / metrics API not found</em></td><td>metrics-server missing</td><td>HPA needs the <code>metrics.k8s.io</code> API, provided by metrics-server (not kube-prometheus-stack). It is deployed via <code>gitops/apps/metrics-server.yaml</code>.</td></tr>
+<tr><td>CI promotion fails: <em>! [rejected] main -> main (fetch first)</em></td><td>Concurrent push race</td><td>The ci-bot push races with human pushes. The workflow's Promote step rebases first (<code>git pull --rebase origin main</code>). If you hit it manually, pull --rebase before pushing your gitops change.</td></tr>
 </table></div>
 
 <h2 id="appB">Appendix B — Cost table</h2>

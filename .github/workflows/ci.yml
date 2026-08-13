@@ -111,4 +111,6 @@ jobs:
           git config user.email "ci-bot@users.noreply.github.com"
           git add gitops/manifests/${{ matrix.app }}/deployment.yaml
           git commit -m "chore(${{ matrix.app }}): promote image ${GITHUB_SHA}"
+          # Concurrent pushes (human + ci-bot) reject a plain push. Rebase first.
+          git pull --rebase origin main
           git push

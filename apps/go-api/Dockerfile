@@ -10,4 +10,4 @@ COPY --from=build /out/go-api /usr/local/bin/go-api
 USER 10001 # numeric — runAsNonRoot needs a numeric UID
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/go-api"]
-# build 2026-08-13 v7
+# build 2026-08-13 v8
