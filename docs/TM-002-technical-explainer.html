@@ -436,7 +436,10 @@ data "aws_iam_policy_document" "github_actions_assume" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_org}/${var.github_repo}:*"]   # only this repo
+      # GitHub's sub now includes numeric IDs after the names (2026 change):
+      #   repo:Linkify-Solutions-Inc@264311428/kubernetes-vercel@1332694408:ref:refs/heads/main
+      # The * absorbs the @<id> suffix so the pattern survives format changes.
+      values = ["repo:${var.github_org}*/${var.github_repo}*:*"]
     }
   }
 }
