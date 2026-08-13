@@ -303,8 +303,10 @@ OIDC. Put the role ARN in GitHub so Actions can assume it:</p>
 # → add as a GitHub Actions secret named AWS_ROLE_ARN on the kubernetes-vercel repo</code></pre>
 
 <p><span class="para-num">4-6.</span><strong>Wire the ingress domain (once).</strong> The ingress
-manifests reference <code>__INGRESS_DOMAIN__</code>. After the ALB exists (Exercise 5), replace it across
-the five ingress files with your wildcard domain — e.g. <code>&lt;alb-dns&gt;.nip.io</code> — and push.</p>
+manifests use a placeholder domain, <code>mini-paas.local</code>. After the ALB exists (Exercise 5),
+replace it across the five ingress files with your wildcard domain — e.g. <code>&lt;alb-ip&gt;.nip.io</code>
+or a real domain — and push. This is a runtime config value (the ALB address only exists once the
+ingress deploys), so it cannot be hardcoded in the repo.</p>
 
 <div class="box checkpoint"><div class="bx-label">Checkpoint 4-A</div><div class="bx-body">
 <pre><code>kubectl -n argocd get pods              # argocd-server running
