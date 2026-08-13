@@ -116,15 +116,35 @@ DESTROY_OK=0
 run_destroy() {
   if terraform destroy -auto-approve -no-color 2>&1 | tee /tmp/minipaas-terraform-destroy.log; then
     DESTROY_OK=1
-  else
-    LOCK_ID=$(grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' \
-      /tmp/minipaas-terraform-destroy.log 2>/dev/null | head -1)
-    if [ -n "$LOCK_ID" ]; then
-      echo "    - $(ts) stale state lock ($LOCK_ID) from an interrupted run — force-unlocking and retrying"
-      terraform force-unlock -force "$LOCK_ID" >/dev/null 2>&1 || true
-      if terraform destroy -auto-approve -no-color 2>&1 | tee /tmp/minipaas-terraform-destroy.log; then
-        DESTROY_OK=1
-      fi
+    return
+  fi
+  # Stale lock from a Ctrl-C mid-destroy? Force-unlock and retry once.
+  LOCK_ID=$(grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' \
+    /tmp/minipaas-terraform-destroy.log 2>/dev/null | head -1)
+  if [ -n "$LOCK_ID" ]; then
+    echo "    - $(ts) stale state lock ($LOCK_ID) from an interrupted run — force-unlocking and retrying"
+    terraform force-unlock -force "$LOCK_ID" >/dev/null 2>&1 || true
+    if terraform destroy -auto-approve -no-color 2>&1 | tee /tmp/minipaas-terraform-destroy.log; then
+      DESTROY_OK=1
+      return
+    fi
+  fi
+  # State backend corrupted (torn write: S3 checksum != DynamoDB Digest)?
+  # Terraform will not touch it. The pre-clean has already removed every SG/ENI
+  # blocker, so the VPC is hollow and can be deleted via the AWS CLI; phase 5
+  # then drops the backend. Only claim success if the VPC really went away, or
+  # phase 5 would orphan a live VPC.
+  if grep -qE "checksum|expected content" /tmp/minipaas-terraform-destroy.log 2>/dev/null; then
+    echo "    - $(ts) state backend corrupted (checksum mismatch from an interrupted write) — removing the VPC via AWS CLI"
+    V=$(find_vpc)
+    if [ -z "$V" ]; then
+      echo "      - $(ts) VPC already gone"
+      DESTROY_OK=1
+    elif aws ec2 delete-vpc --region "$REGION" --vpc-id "$V" >/dev/null 2>&1; then
+      echo "      - $(ts) deleted VPC $V via AWS CLI"
+      DESTROY_OK=1
+    else
+      echo "      - $(ts) VPC $V still has dependencies — NOT marking complete; inspect and re-run"
     fi
   fi
 }
@@ -162,7 +182,7 @@ aws ecr describe-repositories --region "$REGION" --query 'repositories[].reposit
 
 echo "    SQS queues:"
 aws sqs list-queues --region "$REGION" --output text 2>/dev/null \
-  | tr '\t' '\n' | grep -v '^$' \
+  | tr '\t' '\n' | grep -vE '^($|None)$' \
   | while read -r q; do echo "      - $(ts) deleting $q"; aws sqs delete-queue --queue-url "$q" >/dev/null 2>&1 || true; done || true
 
 echo "    Security groups (non-default, leftover in the VPC — e.g. the ALB controller's shared SG):"
