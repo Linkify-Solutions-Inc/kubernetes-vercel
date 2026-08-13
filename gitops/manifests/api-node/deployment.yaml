@@ -18,7 +18,7 @@ spec:
       containers:
         - name: api-node
           # __ECR_IMAGE__ is replaced by the CI pipeline (image line, gitops commit).
-          image: 242626138899.dkr.ecr.us-east-1.amazonaws.com/mini-paas/api-node:13a046b739e8392575fc34feefa4a02d728faf31
+          image: 242626138899.dkr.ecr.us-east-1.amazonaws.com/mini-paas/api-node:2fd97e54c95d40e798a2c95e50cc8123ab09d9a7
           ports:
             - name: http
               containerPort: 3000
