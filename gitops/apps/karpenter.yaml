@@ -1,0 +1,23 @@
+# Karpenter's NodePool + EC2NodeClass — the "machine dial". The controller is
+# installed by Terraform (infra/karpenter.tf); these tell it which nodes to buy.
+# Sync-wave 5: after the CRDs (0), before the tenants (15).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/karpenter
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

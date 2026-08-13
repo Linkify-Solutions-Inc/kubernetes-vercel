@@ -1,0 +1,27 @@
+# Deploys the Prometheus/Alertmanager CRDs that kube-prometheus-stack needs.
+# ArgoCD renders Helm charts via `helm template`, which skips the chart's
+# crds/ directory — so these are shipped in gitops/crds/ and applied here as
+# raw manifests (server-side, which is how ArgoCD handles CRDs, avoiding the
+# 262 KiB annotation limit of a client-side apply).
+# Sync-wave 0: these must exist BEFORE the monitoring app (wave 10) reconciles
+# its Prometheus CR, or the operator reports "prometheuses not installed".
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Linkify-Solutions-Inc/kubernetes-vercel.git
+    targetRevision: main
+    path: gitops/crds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

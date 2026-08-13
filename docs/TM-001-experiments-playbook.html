@@ -277,24 +277,24 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 <dt>kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d</dt><dd>ArgoCD seeds a random admin password in a Secret on first install. This extracts it and decodes it (<code>base64 -d</code>) so you can log in once.</dd>
 </dl></div></div>
 
-<p><span class="para-num">4-3.</span><strong>Install the monitoring CRDs, then register GitOps.</strong>
-ArgoCD deploys the kube-prometheus-stack as a Helm chart but <em>skips Helm's <code>crds/</code>
-directory</em> — the Prometheus/Alertmanager CRDs never install on their own. Apply them first,
-server-side (these large CRDs exceed <code>kubectl apply</code>'s 262 KiB annotation limit):</p>
-<pre><code>kubectl apply --server-side=true -f gitops/crds/
-kubectl apply -f gitops/bootstrap/app-of-apps.yaml
+<p><span class="para-num">4-3.</span><strong>Register GitOps.</strong> The App-of-Apps deploys everything, in
+sync-wave order: the Prometheus CRDs (wave 0), Karpenter's NodePool (wave 5), then metrics-server +
+monitoring + the five tenants (waves 10–15). Because ArgoCD renders Helm charts via
+<code>helm template</code> (which skips the chart's <code>crds/</code> directory), the CRDs ship in
+<code>gitops/crds/</code> and are applied as raw manifests — server-side — by the <code>crds</code> app.</p>
+<pre><code>kubectl apply -f gitops/bootstrap/app-of-apps.yaml
 argocd app list    # one parent app (mini-paas-apps); it discovers the child apps in gitops/apps/</code></pre>
 
 <p><span class="para-num">4-4.</span><strong>Give Karpenter its node dial.</strong> The controller is up
-(from terraform); the NodePool/EC2NodeClass tell it <em>what</em> nodes look like. They live in
-<code>gitops/karpenter/</code> and are applied here (not in terraform — see TM-002 ch. 4).</p>
-<pre><code>kubectl apply -f gitops/karpenter/
-kubectl get nodepools,ec2nodeclasses</code></pre>
+(from terraform); the NodePool/EC2NodeClass tell it <em>what</em> nodes look like. The
+<code>karpenter</code> app (<code>gitops/apps/karpenter.yaml</code>) deploys them automatically — no
+manual apply (see TM-002 ch. 4 for why they are not in Terraform).</p>
+<pre><code>kubectl get nodepools,ec2nodeclasses</code></pre>
 
 <div class="box anatomy"><div class="bx-label">Command by command — registering GitOps</div><div class="bx-body"><dl>
 <dt>kubectl apply -f gitops/bootstrap/app-of-apps.yaml</dt><dd>Tells the cluster "make live state match this file" — the declarative statement. It creates the <em>parent</em> ArgoCD Application, which then discovers the child Applications in <code>gitops/apps/</code>.</dd>
 <dt>argocd app list</dt><dd>The ArgoCD CLI reading the controller's view of Applications — the fastest way to see whether the parent found its children.</dd>
-<dt>kubectl apply -f gitops/karpenter/</dt><dd>Applies the NodePool + EC2NodeClass — the two CRDs that tell Karpenter <em>when</em> to buy nodes and <em>what</em> they look like. Applied here (not in Terraform) because they are cluster objects that can only exist after the controller is running.</dd>
+<dt>karpenter app (gitops/apps/karpenter.yaml)</dt><dd>Deploys the NodePool + EC2NodeClass — the two CRDs that tell Karpenter <em>when</em> to buy nodes and <em>what</em> they look like. Deployed by the App-of-Apps (sync-wave 5), not by hand — they are cluster objects that can only exist after the controller is running.</dd>
 </dl></div></div>
 
 <p><span class="para-num">4-5.</span><strong>CI role secret.</strong> The pipeline assumes an IAM role via
@@ -536,7 +536,7 @@ surprise AWS bill is the one failure that cannot be rolled back.</p>
 <tr><td>Pod fails: <em>runAsNonRoot and image has non-numeric user</em></td><td>Container user</td><td><code>runAsNonRoot: true</code> needs a numeric UID. Use <code>USER 1000</code> (node) / <code>USER 10001</code> (go) in the Dockerfiles, not <code>USER node</code>/<code>appuser</code>.</td></tr>
 <tr><td>HPA: <em>unable to get cpu utilization / metrics API not found</em></td><td>metrics-server missing</td><td>HPA needs the <code>metrics.k8s.io</code> API, provided by metrics-server (not kube-prometheus-stack). It is deployed via <code>gitops/apps/metrics-server.yaml</code>.</td></tr>
 <tr><td>CI promotion fails: <em>! [rejected] main -> main (fetch first)</em></td><td>Concurrent push race</td><td>The ci-bot push races with human pushes. The workflow's Promote step rebases first (<code>git pull --rebase origin main</code>). If you hit it manually, pull --rebase before pushing your gitops change.</td></tr>
-<tr><td>Prometheus pod never created; operator logs <em>"prometheuses … not installed"</em></td><td>ArgoCD skips Helm CRDs</td><td>ArgoCD renders Helm charts via <code>helm template</code>, which omits <code>crds/</code>. Apply the CRDs first: <code>kubectl apply --server-side=true -f gitops/crds/</code> (before the app-of-apps). If the operator already started without them, restart it.</td></tr>
+<tr><td>Prometheus pod never created; operator logs <em>"prometheuses … not installed"</em></td><td>ArgoCD skips Helm CRDs</td><td>ArgoCD renders Helm charts via <code>helm template</code>, which omits <code>crds/</code>. The <code>crds</code> app (<code>gitops/apps/crds.yaml</code>, sync-wave 0) deploys them server-side before the monitoring app (wave 10). If the operator started before the CRDs existed, restart it.</td></tr>
 <tr><td>App returns <em>504 Gateway Time-out</em> through the ALB</td><td>Node SG missing ALB port rule</td><td>The ALB controller adds node-SG ingress rules per service and can miss ports. Check <code>aws elbv2 describe-target-health</code> for <em>Target.Timeout</em>. The fix is declarative: <code>node_security_group_additional_rules</code> in <code>infra/main.tf</code> allows the app ports from the VPC CIDR.</td></tr>
 </table></div>
 
