@@ -119,8 +119,11 @@ run_destroy() {
     return
   fi
   # Stale lock from a Ctrl-C mid-destroy? Force-unlock and retry once.
+  # `|| true`: under `set -o pipefail`, grep finding nothing (e.g. a checksum
+  # error rather than a lock error) returns 1 and would kill the script here —
+  # exactly the abort seen on 2026-08-13.
   LOCK_ID=$(grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' \
-    /tmp/minipaas-terraform-destroy.log 2>/dev/null | head -1)
+    /tmp/minipaas-terraform-destroy.log 2>/dev/null | head -1) || true
   if [ -n "$LOCK_ID" ]; then
     echo "    - $(ts) stale state lock ($LOCK_ID) from an interrupted run — force-unlocking and retrying"
     terraform force-unlock -force "$LOCK_ID" >/dev/null 2>&1 || true
@@ -142,6 +145,10 @@ run_destroy() {
       DESTROY_OK=1
     elif aws ec2 delete-vpc --region "$REGION" --vpc-id "$V" >/dev/null 2>&1; then
       echo "      - $(ts) deleted VPC $V via AWS CLI"
+      n=0
+      while [ $n -lt 12 ] && [ -n "$(aws ec2 describe-vpcs --region "$REGION" --vpc-ids "$V" --query 'Vpcs[0].VpcId' --output text 2>/dev/null)" ]; do
+        sleep 5; n=$((n+1))
+      done
       DESTROY_OK=1
     else
       echo "      - $(ts) VPC $V still has dependencies — NOT marking complete; inspect and re-run"
