@@ -47,7 +47,7 @@ p{margin:.6rem 0;max-width:70ch}
 .eyebrow{color:var(--olive);font-family:"Avenir Next Condensed","Arial Narrow",Arial,sans-serif;
   text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;margin:0 0 .2rem}
 pre{background:var(--code-bg);color:var(--code-ink);padding:.9rem 1rem;
-  overflow-x:auto;font:.83rem/1.55 ui-monospace,Menlo,Consolas,"Courier New",monospace;margin:.8rem 0}
+  overflow-x:auto;font:.78rem/1.55 ui-monospace,Menlo,Consolas,"Courier New",monospace;margin:.8rem 0}
 code{font:.86em ui-monospace,Menlo,Consolas,monospace;background:var(--code-bg);padding:.08em .35em;border-radius:2px}
 pre code{background:none;padding:0}
 .box{border:2px solid;margin:1.1rem 0;max-width:74ch}
@@ -93,10 +93,10 @@ a{color:var(--note)}
 <body>
 <div class="page">
 
-<div class="box warning"><div class="bx-label">Draft — not yet verified</div><div class="bx-body">
-<p>This volume is a draft based on PRD LK-MP-PRD-001. It will be regenerated to match the verified build
-after the code is written and the platform is exercised. (Order changed by design: code first,
-documentation second.)</p>
+<div class="box warning"><div class="bx-label">Verification status</div><div class="bx-body">
+<p>This volume is written from the actual code in the repository (plan-verified). The live AWS build is
+in progress; the code blocks below are the real files, and the architecture is documented as built.
+Final verification notes land in Chapter 9 after the live run.</p>
 </div></div>
 
 <header class="tm-head">
@@ -105,68 +105,69 @@ documentation second.)</p>
     <h1>Mini-PaaS Platform<br>Technical Description &amp; Theory of Operation</h1>
     <table class="meta-table"><tbody>
       <tr><td>Audience</td><td>Operators and students of the system (DevOps course depth)</td></tr>
-      <tr><td>System</td><td>Linkify kubernetes-vercel Mini-PaaS platform</td></tr>
+      <tr><td>System</td><td>Linkify <code>kubernetes-vercel</code> Mini-PaaS platform</td></tr>
       <tr><td>Companion</td><td>TM-LNKFY-MP-001 (the experiments playbook this volume explains)</td></tr>
-      <tr><td>Basis</td><td>Specification LK-MP-PRD-001 Rev A</td></tr>
+      <tr><td>Basis</td><td>PRD <code>LK-MP-PRD-001</code>; actual repository code; plan-verified 2026-08-13</td></tr>
     </tbody></table>
   </div>
   <div class="tm-num">
-    TM-LNKFY-MP-002<br>Rev A · 2026-08-13<br>
+    TM-LNKFY-MP-002<br>Rev B · 2026-08-13<br>
     <span style="font-size:.8rem">Format per MIL-STD-38784 conventions</span>
   </div>
-  <p class="dist">DISTRIBUTION: Linkify Solutions internal. This volume answers <em>why</em>; TM-001
-  answers <em>how</em>. Read them together: procedure without theory produces button-pushers, theory
-  without procedure produces philosophers, and neither can run a platform alone.</p>
+  <p class="dist">DISTRIBUTION: Linkify Solutions internal. This volume answers <em>why</em> and
+  <em>how it connects</em>; TM-001 answers <em>how to do it</em>. The actual code is embedded in Chapter
+  4 — this book is self-contained.</p>
 </header>
 
 <h2 id="toc">Contents</h2>
 <div class="toc">
   <div><a href="#ch1">1 — The ideas underneath everything</a></div>
   <div><a href="#ch2">2 — System architecture &amp; the life of a deployment</a></div>
-  <div><a href="#ch3">3 — Repository tour</a></div>
-  <div><a href="#ch4">4 — The components, one by one</a></div>
-  <div><a href="#ch5">5 — Multi-tenancy &amp; isolation explained</a></div>
-  <div><a href="#ch6">6 — Autoscaling economics</a></div>
-  <div><a href="#ch7">7 — CI/CD: how code becomes a running platform</a></div>
-  <div><a href="#ch8">8 — Glossary</a></div>
+  <div><a href="#ch3">3 — How everything connects (the deep read)</a></div>
+  <div><a href="#ch4">4 — The code, right here (annotated)</a></div>
+  <div><a href="#ch5">5 — Repository tour</a></div>
+  <div><a href="#ch6">6 — The components, one by one</a></div>
+  <div><a href="#ch7">7 — Multi-tenancy &amp; isolation explained</a></div>
+  <div><a href="#ch8">8 — Autoscaling economics</a></div>
+  <div><a href="#ch9">9 — CI/CD: how code becomes a running platform</a></div>
+  <div><a href="#ch10">10 — Glossary</a></div>
 </div>
 
 <h2 id="ch1">Chapter 1 — The ideas underneath everything</h2>
 
-<p><span class="para-num">1-1.</span><strong>Declarative over imperative.</strong> In this platform you
-never tell Kubernetes <em>how</em> to do something step by step; you describe the <em>desired state</em>
-and a controller makes reality match it. <code>kubectl apply -f manifest.yaml</code> says "this is what
-I want", not "do this, then this, then this". This single inversion of thinking — from procedure to
-desired state — is the biggest mental shift in modern platform work, and GitOps and autoscaling both
-fall out of it.</p>
+<p><span class="para-num">1-1.</span><strong>Declarative over imperative.</strong> You never tell
+Kubernetes <em>how</em> to do something step by step; you describe the <em>desired state</em> and a
+controller makes reality match it. <code>kubectl apply -f manifest.yaml</code> says "this is what I
+want", not "do this, then this, then this". This single inversion — from procedure to desired state — is
+the biggest mental shift in modern platform work, and GitOps and autoscaling both fall out of it.</p>
 
 <p><span class="para-num">1-2.</span><strong>Infrastructure as code, with a ledger.</strong> Terraform
 treats your AWS account as something you describe in files and <em>reconcile</em>. Three words carry all
-the meaning: <strong>state</strong> (what you currently own, recorded in S3), <strong>plan</strong> (the
-diff between what you own and what you wrote), <strong>apply</strong> (making the plan real). Because the
-state is the source of truth, everything can be destroyed and recreated — which is exactly why this
-project can be a one-month exercise instead of a permanent gamble.</p>
+the meaning: <strong>state</strong> (what you currently own, recorded in S3, locked by DynamoDB),
+<strong>plan</strong> (the diff between what you own and what you wrote — the review gate), and
+<strong>apply</strong> (making the plan real). Because the state is the source of truth, everything can
+be destroyed and recreated — which is exactly why this can be a one-month exercise instead of a
+permanent gamble.</p>
 
-<p><span class="para-num">1-3.</span><strong>GitOps is the deployment engine.</strong> The platform has
-no custom deploy server and no special "engine" code. The engine is a git repository plus a controller
-that watches it. When you want a new version of an app, you change a file in git; ArgoCD notices, diffs
-the cluster against the desired state, and converges. Deleting a pod is not a bug — it is a test, and
-ArgoCD wins it.</p>
+<p><span class="para-num">1-3.</span><strong>GitOps is the deployment engine.</strong> There is no custom
+deploy server and no special "engine" code. The engine is a git repository plus a controller that watches
+it (ArgoCD). To release a new version you change a file in git; ArgoCD diffs the cluster against the
+desired state and converges. Deleting a pod is not a bug — it is a test, and ArgoCD wins it.</p>
 
 <p><span class="para-num">1-4.</span><strong>Two different autoscalers, two different jobs.</strong>
 Pods scale inside a node (HPA, based on CPU utilization of requests); nodes scale inside the account
-(Karpenter, based on pods that cannot be scheduled). Confusing them is the classic mistake; the whole of
-Chapter 6 exists to keep them straight.</p>
+(Karpenter, based on pods that cannot be scheduled). Confusing them is the classic mistake; Chapter 8
+exists to keep them straight.</p>
 
 <p><span class="para-num">1-5.</span><strong>Tenancy is a platform responsibility.</strong> When many
-things share one cluster, the person running the cluster owns the boundaries: what each tenant may
-consume (quota, limits) and what each tenant may reach (network policy). That is the entire job of a
-platform team, compressed into Chapter 5.</p>
+things share one cluster, the person running it owns the boundaries: what each tenant may consume (quota,
+limits) and what each tenant may reach (network policy). That is the entire job of a platform team,
+compressed into Chapter 7.</p>
 
 <div class="box note"><div class="bx-label">Note — ephemeral by design</div><div class="bx-body">
-<p>Every choice in this architecture (code, not clicks; git, not state; teardown, not goodbye) exists so
-the platform can be born, studied, and destroyed in a month. If a component can only be built but not
-torn down, it does not belong in the exercise.</p>
+<p>Every choice in this architecture (code, not clicks; git, not state; a teardown script that takes
+everything down) exists so the platform can be born, studied, and destroyed in a month. If a component
+can only be built but not torn down, it does not belong in the exercise.</p>
 </div></div>
 
 <h2 id="ch2">Chapter 2 — System architecture &amp; the life of a deployment</h2>
@@ -176,12 +177,12 @@ change through the whole system — this is the picture the project exists to ma
 
 <ol class="steps">
   <li><strong>You push</strong> a change to an app in GitHub. This is the only human action in the loop.</li>
-  <li><strong>GitHub Actions</strong> builds the container image and runs a minimal check. It authenticates to AWS by <em>federation</em> (OIDC) — it is trusted temporarily, with no stored keys.</li>
+  <li><strong>GitHub Actions</strong> builds the container image and runs a minimal check. It authenticates to AWS by <em>federation</em> (OIDC) — trusted temporarily, with no stored keys.</li>
   <li><strong>The image lands in ECR</strong> under an immutable tag: the commit SHA. The tag is the version's identity for life.</li>
-  <li><strong>Actions updates the manifest</strong> in the <code>gitops/</code> repository — the desired state now points at the new tag.</li>
+  <li><strong>Actions updates the manifest</strong> in <code>gitops/manifests/&lt;app&gt;/deployment.yaml</code> — the desired state now points at the new tag.</li>
   <li><strong>ArgoCD notices the drift</strong> between the gitops repo and the live cluster, and syncs: it applies the manifest, creating or updating the namespace, quota, deployment, service, ingress, and HPA for that app.</li>
-  <li><strong>The scheduler places the pods</strong> on nodes. If no node has room, <strong>Karpenter</strong> provisions one.</li>
-  <li><strong>The ingress controller routes</strong> <code>app.&lt;domain&gt;</code> through the ALB to the app's Service, which load-balances to the pods.</li>
+  <li><strong>The scheduler places the pods</strong> on nodes. If no node has room, <strong>Karpenter</strong> provisions one (via its NodePool/EC2NodeClass).</li>
+  <li><strong>The ingress controller routes</strong> <code>&lt;app&gt;.&lt;domain&gt;</code> through the ALB to the app's Service, which load-balances to the pods.</li>
   <li><strong>Prometheus scrapes</strong> metrics; if the app's CPU crosses the HPA target, replicas grow — and if pods no longer fit, Karpenter adds a node. Grafana shows all of it.</li>
 </ol>
 
@@ -200,73 +201,483 @@ change through the whole system — this is the picture the project exists to ma
 <tr><td>Observe</td><td>Prometheus + Grafana</td><td>Every step above, visible.</td><td>REQ-3.8</td></tr>
 </table></div>
 
-<h2 id="ch3">Chapter 3 — Repository tour</h2>
+<h2 id="ch3">Chapter 3 — How everything connects (the deep read)</h2>
+
+<p><span class="para-num">3-1.</span>Chapters 1 and 2 give the path; this chapter gives the <em>wiring</em>
+— the concrete names, ports, and flows that actually connect one component to another. There are five
+flows that matter, and each one is traceable through the code in Chapter 4.</p>
+
+<h3>3-2. The traffic flow (north-south)</h3>
+<p><span class="para-num">3-2.1.</span>A client hits <code>https://api.&lt;ingress-domain&gt;/work?ms=2000</code>.</p>
+<pre><code>client ──HTTPS──▶ ALB (internet-facing, group "mini-paas")
+   │  host: api.&lt;domain&gt;  →  ingress rule  →  Service: api-node (app-api-node:80)
+   │                                                            │ targetPort: http (3000)
+   │                                                            ▼
+   │                                           Pod: api-node (containerPort 3000)
+   │                                              │
+   │                                              ▼ (in-cluster, no DNS/HTTP)
+   │                                        POST /work → busy loop → { burned, pid }
+   └─────────────────── JSON ────────────────────┘</code></pre>
+<p><span class="para-num">3-2.2.</span>The Service is the stable name. Everything else (the ALB target,
+the pod IP) can change; <code>api-node.app-api-node.svc.cluster.local</code> does not. That is why the
+load generator and cross-tenant experiments use the service name, not a pod IP.</p>
+
+<h3>3-3. The state flow (GitOps)</h3>
+<p><span class="para-num">3-3.1.</span>The cluster's desired state lives in <code>gitops/</code>. ArgoCD
+polls the repository, computes the diff against the live cluster, and converges. The arrows:</p>
+<pre><code>gitops/apps/app-of-apps.yaml ──▶ mini-paas-apps (parent Application)
+     │  path: gitops/apps
+     ▼
+gitops/apps/api-node.yaml ──▶ Application "api-node" (child)
+     │  source path: gitops/manifests/api-node
+     ▼
+namespace app-api-node + quota + limits + networkpolicy
+     + deployment + service + ingress + hpa     ──▶ applied by ArgoCD sync</code></pre>
+<p><span class="para-num">3-3.2.</span>Every object a tenant owns is in <code>gitops/manifests/&lt;app&gt;/</code>.
+There is no other write path into these namespaces — the pipeline writes the image tag, ArgoCD does the
+rest. If the cluster drifts (someone runs a raw kubectl), self-heal pulls it back.</p>
+
+<h3>3-4. The permission flow (who may do what)</h3>
+<div class="tblwrap"><table class="data">
+<tr><th>Identity</th><th>Mechanism</th><th>Grants</th><th>Where it's wired</th></tr>
+<tr><td>GitHub Actions</td><td>OIDC federation</td><td>ECR push only; never touches the cluster</td><td><code>infra/oidc.tf</code> + the workflow's <code>configure-aws-credentials</code></td></tr>
+<tr><td>Pods (ALB controller)</td><td>IRSA</td><td>The ALB controller IAM policy</td><td><code>infra/irsa.tf</code> + the service-account annotation in the Helm release</td></tr>
+<tr><td>Pods (Karpenter controller)</td><td>EKS Pod Identity</td><td>Node provisioning, SQS interruption queue</td><td><code>infra/karpenter.tf</code> (sub-module)</td></tr>
+<tr><td>Nodes (Karpenter-provisioned)</td><td>Instance role</td><td>kubelet, CNI, SSM</td><td>The karpenter sub-module's node IAM role, referenced by the EC2NodeClass</td></tr>
+<tr><td>Operator (you)</td><td>SSO → EKS access entry</td><td>Cluster admin (cluster creator)</td><td>EKS module: <code>enable_cluster_creator_admin_permissions</code></td></tr>
+</table></div>
+<p><span class="para-num">3-4.1.</span>There are no long-lived AWS keys anywhere: not in git, not in the
+cluster. Every principal gets a short-lived credential via federation. This is the single most important
+security property of the platform, and it is why the prior project's ARN-copying failure mode cannot
+recur.</p>
+
+<h3>3-5. The scaling flow</h3>
+<pre><code>loadgen (8 parallel wget loops)
+   │  GET /work?ms=1500  (over the in-cluster Service)
+   ▼
+api-node pod: CPU pegged → kubelet reports metrics → metrics-server
+   ▼
+HPA reads utilization = currentCPU / request(50m)  →  exceeds 50% target
+   ▼
+HPA writes replicas: N  →  Deployment controller creates pods
+   ▼
+scheduler: no node fits → pending pods
+   ▼
+Karpenter: NodePool "default" + EC2NodeClass "default" → buys a t3.medium
+   ▼
+kubectl get nodes -w shows the new node; Grafana shows it all</code></pre>
+
+<h3>3-6. The observability flow</h3>
+<p><span class="para-num">3-6.1.</span>kube-prometheus-stack deploys Prometheus (scraping) + Grafana
+(dashboards) + node-exporter (node metrics) + kube-state-metrics (object metrics). Prometheus scrapes
+<code>/metrics</code> from kubelet, node-exporter, and the HPA/metrics path. Grafana renders node CPU,
+pod CPU, and HPA behavior. The load test and the dashboards are two views of the same number.</p>
+
+<h3>3-7. The cost flow</h3>
+<p><span class="para-num">3-7.1.</span>Every billable thing traces to a terraform resource or a
+Karpenter-provisioned node. The control plane is flat (~$73/mo); nodes, NAT, and the ALB scale with
+usage. Teardown (Chapter 10 of TM-001) is the reverse of this flow: stop GitOps, destroy namespaces,
+<code>terraform destroy</code>, then a residual sweep for anything an experiment created outside
+Terraform.</p>
+
+<h2 id="ch4">Chapter 4 — The code, right here</h2>
+
+<p><span class="para-num">4-0.</span>The files below are the real repository files, abridged only where
+marked. Read them with Chapter 3's flows in mind — every arrow in Chapter 3 resolves to a line here.</p>
+
+<h3>4-1. <code>infra/main.tf</code> — the VPC, the cluster, the ALB controller</h3>
+<pre><code>module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = local.name
+  cidr = var.vpc_cidr
+
+  azs             = local.azs
+  private_subnets = [for k, _ in local.azs : cidrsubnet(var.vpc_cidr, 4, k)]
+  public_subnets  = [for k, _ in local.azs : cidrsubnet(var.vpc_cidr, 8, k + 48)]
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = true   # cost: one NAT for the exercise
+  one_nat_gateway_per_az = false
+  enable_vpn_gateway     = false
+
+  private_subnet_tags = {
+    "karpenter.sh/discovery" = local.name   # Karpenter finds private subnets by tag
+  }
+  tags = local.tags
+}
+
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 21.0"
+
+  name                   = local.name
+  kubernetes_version     = var.cluster_version
+  endpoint_public_access = true
+
+  # No customer KMS key — EKS uses its own AWS-managed key. This keeps the IAM
+  # surface small enough for the StreamingDeploy permission set AND keeps
+  # teardown zero-cost (KMS keys linger 7 days and cost $1/mo).
+  create_kms_key    = false
+  encryption_config = null
+
+  addons = {
+    coredns            = {}
+    kube-proxy         = {}
+    vpc-cni            = {}
+    aws-ebs-csi-driver = {}
+  }
+
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  enable_irsa = true
+
+  eks_managed_node_groups = {
+    bootstrap = {
+      desired_size   = var.node_desired_size
+      min_size       = var.node_min_size
+      max_size       = var.node_max_size
+      instance_types = [var.node_instance_type]
+      labels = {
+        role                      = "bootstrap"
+        "karpenter.sh/controller" = "true"   # Karpenter runs on a node it does NOT manage
+      }
+      tags = merge(local.tags, {
+        "karpenter.sh/discovery" = local.name
+      })
+    }
+  }
+  tags = local.tags
+}
+
+# ALB controller — the bridge between K8s Ingress and a real ALB.
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+
+  set {
+    name  = "clusterName"; value = module.eks.cluster_name
+  }
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.alb_controller.arn     # IRSA — no keys
+  }
+}</code></pre>
+
+<h3>4-2. <code>infra/karpenter.tf</code> — the machine dial</h3>
+<pre><code># Controller identity, node IAM role, and interruption queue come from the
+# v21 sub-module. The NodePool/EC2NodeClass live in gitops/karpenter/ and are
+# applied AFTER this (they are cluster resources, applied after the controller).
+module "karpenter" {
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "~> 21.0"
+
+  cluster_name = module.eks.cluster_name
+  create_pod_identity_association = true        # Pod Identity, not IRSA
+
+  node_iam_role_use_name_prefix = false
+  node_iam_role_name            = local.name    # must match EC2NodeClass role
+  node_iam_role_additional_policies = {
+    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  }
+  tags = local.tags
+}
+
+data "aws_ecrpublic_authorization_token" "token" {
+  provider = aws.virginia     # ECR Public is only served from us-east-1
+}
+
+resource "helm_release" "karpenter" {
+  namespace           = "kube-system"
+  name                = "karpenter"
+  repository          = "oci://public.ecr.aws/karpenter"
+  chart               = "karpenter"
+  version             = var.karpenter_version
+  wait                = false
+  repository_username = data.aws_ecrpublic_authorization_token.token.user_name
+  repository_password = data.aws_ecrpublic_authorization_token.token.password
+
+  values = [templatefile("${path.module}/values/karpenter-values.yaml.tpl", {
+    cluster_name       = module.eks.cluster_name
+    cluster_endpoint   = module.eks.cluster_endpoint
+    interruption_queue = module.karpenter.queue_name
+  })]
+}</code></pre>
+
+<h3>4-3. <code>infra/oidc.tf</code> — CI without keys</h3>
+<pre><code>resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [var.github_actions_thumbprint]
+}
+
+data "aws_iam_policy_document" "github_actions_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_org}/${var.github_repo}:*"]   # only this repo
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions" {
+  name               = "mini-paas-github-actions"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_assume.json
+  tags               = local.tags
+}
+# ... plus an ECR-push-only policy attached to that role.</code></pre>
+
+<h3>4-4. <code>.github/workflows/ci.yml</code> — the release side</h3>
+<pre><code>name: ci
+on:
+  push: { branches: [main], paths: ["apps/**"] }
+  workflow_dispatch:
+
+permissions:
+  id-token: write    # OIDC federation to AWS — no static keys anywhere
+  contents: write    # to commit the gitops image promotion
+
+env: { AWS_REGION: us-east-1 }
+
+jobs:
+  changes:            # which apps changed in this push?
+    outputs: { apps: ${{ steps.detect.outputs.apps }} }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - id: detect
+        run: |
+          APPS=$(git diff --name-only HEAD^ HEAD -- apps/ 2>/dev/null \
+            | sed -n 's|^apps/\([^/]*\)/.*|\1|p' | sort -u \
+            | grep -E '^(api-node|web-node|worker-node|py-api|go-api)$' \
+            | jq -R -s -c 'split("\n") | map(select(length&gt;0))')
+          if [ -z "$APPS" ] || [ "$APPS" = "null" ]; then APPS='[]'; fi
+          echo "apps=$APPS" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.apps != '[]'
+    strategy:
+      max-parallel: 1        # the gitops push must not race
+      matrix: { app: ${{ fromJson(needs.changes.outputs.apps) }} }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Compute image reference
+        id: img
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          echo "image=$ACCOUNT.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/mini-paas/${{ matrix.app }}:${{ github.sha }}" \
+            >> "$GITHUB_OUTPUT"
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin \
+              ${{ steps.img.outputs.image }} 2&gt;/dev/null || true
+      - name: Minimal check
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          case "${{ matrix.app }}" in
+            api-node|web-node|worker-node)
+              [ -f package-lock.json ] &amp;&amp; npm ci || npm install --no-audit --no-fund
+              npm run typecheck ;;
+            py-api) python -m py_compile main.py ;;
+            go-api) go vet ./... ;;
+          esac
+      - name: Build image
+        run: docker build -f apps/${{ matrix.app }}/Dockerfile \
+              -t ${{ steps.img.outputs.image }} apps/${{ matrix.app }}
+      - name: Push image (immutable SHA tag)
+        run: docker push ${{ steps.img.outputs.image }}
+      - name: Promote image in gitops (ArgoCD will reconcile)
+        run: |
+          IMAGE="${{ steps.img.outputs.image }}"
+          sed -i -E "s|^[[:space:]]*image:.*|          image: ${IMAGE}|" \
+            gitops/manifests/${{ matrix.app }}/deployment.yaml
+          git config user.name "ci-bot" &amp;&amp; git config user.email "ci-bot@users.noreply.github.com"
+          git add gitops/manifests/${{ matrix.app }}/deployment.yaml
+          git commit -m "chore(${{ matrix.app }}): promote image ${GITHUB_SHA}"
+          git push</code></pre>
+
+<h3>4-5. One tenant's manifests (<code>gitops/manifests/api-node/</code>) — the others follow the pattern</h3>
+<pre><code># deployment.yaml — the workload
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api-node, namespace: app-api-node }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: api-node } }
+  template:
+    metadata: { labels: { app: api-node } }
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: api-node
+          image: __ECR_IMAGE__          # replaced by CI (image line, gitops commit)
+          ports: [{ name: http, containerPort: 3000 }]
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { cpu: 250m, memory: 256Mi }
+          readinessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 5 }
+          livenessProbe:  { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 15 }</code></pre>
+
+<pre><code># hpa.yaml — the pod dial (50% of the 50m REQUEST; modest load trips it fast)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: api-node, namespace: app-api-node }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: api-node }
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 50 }</code></pre>
+
+<pre><code># networkpolicy.yaml — the fence (ingress open for the ALB; egress locked down)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: app-api-node }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - {}                     # ALB target traffic arrives from outside the pod network
+  egress:
+    - to: [{ podSelector: {} }]     # same namespace only
+    - to:                            # + DNS to CoreDNS (kube-system)
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]</code></pre>
+
+<h3>4-6. <code>apps/api-node/src/index.ts</code> — the scaling demo's business logic</h3>
+<pre><code>import express, { Request, Response } from "express";
+
+const app = express();
+const PORT = parseInt(process.env.PORT || "3000", 10);
+
+app.get("/", (_req: Request, res: Response) => {
+  res.json({ app: "api-node", message: "Mini-PaaS demo API" });
+});
+
+app.get("/healthz", (_req: Request, res: Response) => {
+  res.json({ status: "ok" });
+});
+
+// CPU burn for the autoscaling demo. `ms` controls how long each request pegs a
+// CPU core. A busy loop on purpose, so the CPU metric is real.
+app.get("/work", (req: Request, res: Response) => {
+  const ms = Math.min(parseInt(String(req.query.ms || "2000"), 10) || 2000, 10000);
+  const end = Date.now() + ms;
+  while (Date.now() &lt; end) { /* busy loop */ }
+  res.json({ app: "api-node", burned: ms, pid: process.pid });
+});
+
+app.listen(PORT, () => console.log(`api-node listening on :${PORT}`));</code></pre>
+<p><span class="para-num">4-6.1.</span>Note <code>pid</code> in the response: hit the URL across several
+replicas and each response names a different process — the cheapest possible proof that HPA actually
+scaled you out.</p>
+
+<h3>4-7. <code>scripts/verify.sh</code> — the acceptance harness (abridged)</h3>
+<pre><code>check() { if "$@" &gt;/dev/null 2&gt;&amp;1; then echo "  [PASS] $1"; else echo "  [FAIL] $1"; FAIL=1; fi }
+
+check "nodes Ready"              kubectl get nodes --no-headers
+check "quota present"            kubectl -n app-api-node get resourcequota quota
+check "networkpolicy present"    kubectl -n app-api-node get networkpolicy default-deny
+check "HPA present for api-node" kubectl -n app-api-node get hpa api-node
+check "Karpenter installed"      kubectl -n kube-system get pod -l app.kubernetes.io/name=karpenter
+check "prometheus running"       kubectl -n monitoring get pod -l app.kubernetes.io/name=prometheus
+# ... and the Appendix D checkpoint set; exits non-zero on any [FAIL].</code></pre>
+
+<h2 id="ch5">Chapter 5 — Repository tour</h2>
 
 <div class="tblwrap"><table class="data">
 <tr><th>Path</th><th>Contents</th><th>Who owns it</th></tr>
-<tr><td><code>infra/</code></td><td>Terraform: VPC, EKS, Karpenter, ECR, DNS, IAM (IRSA + OIDC), S3/DynamoDB state</td><td>Changed rarely; applied by <code>terraform apply</code></td></tr>
-<tr><td><code>apps/</code></td><td>The five demo apps (each with Dockerfile + config) plus <code>loadgen</code></td><td>Changed by git push → pipeline</td></tr>
-<tr><td><code>gitops/</code></td><td>ArgoCD App-of-Apps + per-app manifests (namespace, quota, limits, policy, deployment, service, ingress, hpa)</td><td>Changed by the pipeline; reconciled by ArgoCD</td></tr>
-<tr><td><code>docs/</code></td><td>PRD (LK-MP-PRD-001), this manual, the playbook</td><td>Humans</td></tr>
-<tr><td><code>.github/workflows/</code></td><td>The CI pipeline (OIDC-assumed role → build → ECR → gitops commit)</td><td>GitHub Actions</td></tr>
+<tr><td><code>infra/</code></td><td>Terraform: VPC, EKS (v21), Karpenter controller, ECR, IRSA, GitHub OIDC, S3/DynamoDB state</td><td>Changed rarely; <code>terraform apply</code></td></tr>
+<tr><td><code>apps/</code></td><td>The five demo apps (each with Dockerfile + source) plus <code>loadgen</code></td><td>Changed by git push → pipeline</td></tr>
+<tr><td><code>gitops/</code></td><td>App-of-Apps + per-app manifests (namespace, quota, limits, policy, deployment, service, ingress, hpa) + <code>karpenter/</code> + <code>monitoring/</code></td><td>Changed by the pipeline; reconciled by ArgoCD</td></tr>
+<tr><td><code>scripts/</code></td><td><code>verify.sh</code> (acceptance), <code>teardown.sh</code> (full account sweep)</td><td>Operators</td></tr>
+<tr><td><code>docs/</code></td><td>PRD (<code>LK-MP-PRD-001</code>), this manual, the playbook</td><td>Humans</td></tr>
+<tr><td><code>.github/workflows/</code></td><td>The CI pipeline (OIDC → build → ECR → gitops commit)</td><td>GitHub Actions</td></tr>
 </table></div>
 
-<p><span class="para-num">3-1.</span>The division is deliberate: <code>infra/</code> is the "born once"
+<p><span class="para-num">5-1.</span>The division is deliberate: <code>infra/</code> is the "born once"
 layer, <code>gitops/</code> is the "runs forever" layer, and <code>apps/</code> is the layer your pushes
-touch daily. Knowing which file answers which question ("how is the cluster made?" → <code>infra/</code>;
-"what is running and why?" → <code>gitops/</code>) is half of operating the system.</p>
+touch daily. Knowing which file answers which question ("how is the cluster made?" →
+<code>infra/</code>; "what is running and why?" → <code>gitops/</code>) is half of operating the system.</p>
 
-<h2 id="ch4">Chapter 4 — The components, one by one</h2>
+<h2 id="ch6">Chapter 6 — The components, one by one</h2>
 
 <div class="box anatomy"><div class="bx-label">Component anatomy</div><div class="bx-body"><dl>
-<dt>Amazon EKS</dt><dd>The managed control plane. AWS runs the API server and etcd for you; you pay a flat hourly rate and operate only the worker nodes. Kubernetes knowledge transfers directly — EKS is stock Kubernetes, not a fork.</dd>
-<dt>Karpenter</dt><dd>The node autoscaler. It watches for unschedulable pods, picks the cheapest instance type that fits, provisions it, and later consolidates idle nodes away. It is the reason "the cluster grows when the platform needs it".</dd>
+<dt>Amazon EKS</dt><dd>The managed control plane. AWS runs the API server and etcd; you pay a flat hourly rate and operate only the worker nodes. Stock Kubernetes, not a fork.</dd>
+<dt>Karpenter</dt><dd>The node autoscaler. Watches for unschedulable pods, buys the cheapest instance that fits, consolidates idle nodes away. The "machine dial".</dd>
 <dt>ArgoCD</dt><dd>The GitOps controller and therefore the deployment engine. Declarative, self-healing, prunes anything git removed. Its "Application" is the unit of deployment — one per tenant.</dd>
 <dt>AWS Load Balancer Controller</dt><dd>Turns a Kubernetes Ingress object into a real ALB and wires the target group to your Services. The bridge between Kubernetes routing and AWS networking.</dd>
-<dt>kube-prometheus-stack</dt><dd>A Helm chart bundling Prometheus (metrics storage + scraping), Grafana (dashboards), node-exporter (node metrics), and kube-state-metrics (cluster object metrics). Installed in one command; the whole observability story.</dd>
-<dt>IRSA</dt><dd>IAM Roles for Service Accounts: a Kubernetes ServiceAccount maps to an IAM role, and pods assume that role via projected credentials. No access keys inside the cluster, ever.</dd>
-<dt>GitHub OIDC</dt><dd>The CI job presents a signed token to AWS; AWS verifies it and mints short-lived credentials. The pipeline is trusted for a few minutes per run instead of holding keys forever.</dd>
-<dt>Terraform state</dt><dd>S3 bucket (state file) + DynamoDB (lock). The ledger that makes plan/apply and destroy possible — and the thing that makes the whole project disposable.</dd>
+<dt>kube-prometheus-stack</dt><dd>A Helm chart bundling Prometheus (scrape + storage), Grafana (dashboards), node-exporter, kube-state-metrics. One command; the whole observability story.</dd>
+<dt>IRSA</dt><dd>IAM Roles for Service Accounts: a ServiceAccount maps to an IAM role; pods assume it via projected credentials. No keys in the cluster.</dd>
+<dt>EKS Pod Identity</dt><dd>The newer identity path used by the Karpenter controller — an EKS-level association between a service account and an IAM role, simpler than IRSA's trust-policy plumbing.</dd>
+<dt>GitHub OIDC</dt><dd>The CI job presents a signed token to AWS; AWS verifies it and mints short-lived credentials. Trusted for minutes per run instead of holding keys forever.</dd>
+<dt>Terraform state</dt><dd>S3 bucket (state) + DynamoDB (lock). The ledger that makes plan/apply/destroy possible — and the thing that makes the whole project disposable.</dd>
 </dl></div></div>
 
-<h2 id="ch5">Chapter 5 — Multi-tenancy &amp; isolation explained</h2>
+<h2 id="ch7">Chapter 7 — Multi-tenancy &amp; isolation explained</h2>
 
-<p><span class="para-num">5-1.</span>A platform's job is to let many things share one cluster without
-hurting each other. Three mechanisms compose to do that, and they are deliberately separate:</p>
+<p><span class="para-num">7-1.</span>A platform lets many things share one cluster without hurting each
+other. Three mechanisms compose, and they are deliberately separate:</p>
 
 <div class="tblwrap"><table class="data">
 <tr><th>Mechanism</th><th>Answers</th><th>Enforced by</th></tr>
 <tr><td>Namespace</td><td>"What is mine?" — a named boundary for objects</td><td>API server</td></tr>
 <tr><td>ResourceQuota + LimitRange</td><td>"How much may I take?" — totals per namespace, per-pod bounds</td><td>Admission control (rejects before a pod exists)</td></tr>
-<tr><td>NetworkPolicy</td><td>"Who may I talk to?" — default-deny, allow same-namespace, allow ingress</td><td>CNI (enforced on the data path)</td></tr>
+<tr><td>NetworkPolicy</td><td>"Who may I talk to?" — default-deny egress, allow same-namespace + DNS, ingress open for the ALB</td><td>CNI (enforced on the data path)</td></tr>
 </table></div>
 
-<p><span class="para-num">5-2.</span>Why all three? Because each answers a different question and they
-fail independently. A namespace without a quota lets one tenant starve the cluster; a quota without a
-network policy lets one tenant reach another's data. This is also exactly how a production platform team
-thinks — the demo apps are stand-ins for real tenants, but the controls are the real thing.</p>
+<p><span class="para-num">7-2.</span>Why all three? They answer different questions and fail
+independently. A namespace without a quota lets one tenant starve the cluster; a quota without a network
+policy lets one tenant reach another's data. This is exactly how a production platform team thinks — the
+demo apps are stand-ins for real tenants, but the controls are the real thing.</p>
 
-<p><span class="para-num">5-3.</span><strong>A subtlety worth naming:</strong> quota rejection happens
-at admission time and surfaces as an <em>event</em>, not a container log. Learning to read events
-(<code>kubectl describe</code>, <code>kubectl get events</code>) rather than only logs is one of the
-quiet skills this project teaches.</p>
+<p><span class="para-num">7-3.</span><strong>Two gotchas worth naming.</strong> First, quota rejection
+surfaces as an <em>event</em>, not a container log — learn to read <code>kubectl get events</code>.
+Second, ALB target traffic arrives from <em>outside</em> the pod network, so the ingress rule of the
+NetworkPolicy must stay permissive or the app becomes unreachable; the isolation lesson is taught on the
+egress side instead (that is why Experiment 4-B blocks <em>outbound</em> cross-tenant calls).</p>
 
-<h2 id="ch6">Chapter 6 — Autoscaling economics</h2>
+<h2 id="ch8">Chapter 8 — Autoscaling economics</h2>
 
-<p><span class="para-num">6-1.</span><strong>HPA is the pod dial.</strong> The HorizontalPodAutoscaler
-watches the CPU <em>utilization of the requests</em> (not the machine's CPU). Because the demo apps
-request 50m CPU and HPA targets 50%, a modest load crosses the threshold quickly — the demo is tuned so
-the lesson fires with light effort. What HPA cannot do is create more machine.</p>
+<p><span class="para-num">8-1.</span><strong>HPA is the pod dial.</strong> The HorizontalPodAutoscaler
+watches CPU <em>utilization of the requests</em> (not the machine's CPU). Because api-node requests 50m
+CPU and the HPA targets 50%, a modest load spike crosses the threshold quickly — the demo is tuned so the
+lesson fires with light effort. What HPA cannot do is create more machine.</p>
 
-<p><span class="para-num">6-2.</span><strong>Karpenter is the machine dial.</strong> When pods exist that
+<p><span class="para-num">8-2.</span><strong>Karpenter is the machine dial.</strong> When pods exist that
 no current node can fit, Karpenter buys a node; when nodes sit idle past the consolidation window, it
-sells them back. Node choice is a cost-and-speed dial: <code>t3.medium</code> was chosen because it is
-the smallest instance where a handful of extra replicas actually forces a new node — the node-scaling
-lesson cannot even be observed on a bigger instance.</p>
+sells them back. <code>t3.medium</code> was chosen because it is the smallest instance where a handful of
+extra replicas actually forces a new node — the node-scaling lesson cannot even be observed on a bigger
+instance.</p>
 
-<p><span class="para-num">6-3.</span><strong>The cost picture.</strong> The EKS control plane costs the
-same whether nodes are micro or medium — that is why "use a smaller instance to save money" is a
-trap (TM-001 Appendix B). Real levers: node count, spot vs on-demand, and NAT choice.</p>
+<p><span class="para-num">8-3.</span><strong>The cost picture.</strong> The EKS control plane costs the
+same whether nodes are micro or medium — that is why "use a smaller instance to save money" is a trap.
+Real levers: node count, spot vs on-demand, and NAT choice. The full table is TM-001 Appendix B.</p>
 
 <div class="tblwrap"><table class="data">
 <tr><th>Scale type</th><th>Level</th><th>Trigger</th><th>You watch it with</th></tr>
@@ -280,54 +691,62 @@ the load, and both HPA and Karpenter must consolidate back to baseline. A platfo
 platform that only bills.</p>
 </div></div>
 
-<h2 id="ch7">Chapter 7 — CI/CD: how code becomes a running platform</h2>
+<h2 id="ch9">Chapter 9 — CI/CD: how code becomes a running platform</h2>
 
-<p><span class="para-num">7-1.</span><strong>CI (Continuous Integration)</strong> is the build side: every
-push is compiled, checked, and containerized in a reproducible way. <strong>CD (Continuous Delivery)</strong>
-is the release side: the artifact is delivered and promoted. In this platform, CI lives in GitHub Actions
-and CD <em>is</em> GitOps — the delivery mechanism is a git commit that a controller reconciles. There is
-no SSH-into-a-server-and-restart anywhere in the loop.</p>
+<p><span class="para-num">9-1.</span><strong>CI (Continuous Integration)</strong> is the build side: every
+push is compiled, checked, and containerized reproducibly. <strong>CD (Continuous Delivery)</strong> is
+the release side: the artifact is delivered and promoted. Here, CI lives in GitHub Actions and CD
+<em>is</em> GitOps — the delivery mechanism is a git commit that a controller reconciles. There is no
+SSH-into-a-server-and-restart anywhere in the loop.</p>
 
-<p><span class="para-num">7-2.</span><strong>Why OIDC and not keys?</strong> A stored AWS access key is a
-permanent credential that outlives its usefulness and leaks. OIDC federation replaces it with a trust
-relationship: the pipeline proves its identity to AWS with a short-lived signed token, gets short-lived
-credentials, and is done. It is both more secure and simpler to operate — no secret rotation, no
-"where did the key go".</p>
+<p><span class="para-num">9-2.</span><strong>Why OIDC and not keys?</strong> A stored AWS access key is a
+permanent credential that outlives its usefulness and leaks. OIDC replaces it with a trust relationship:
+the pipeline proves its identity to AWS with a short-lived signed token, gets short-lived credentials,
+and is done. More secure and simpler to operate — no rotation, no "where did the key go".</p>
 
-<p><span class="para-num">7-3.</span><strong>Why immutable tags?</strong> The image is tagged with its
-commit SHA, so a running version can always be traced back to the exact code that produced it. It also
-makes rollback trivial: point the manifest at the previous tag (via <code>git revert</code>) and sync.
-The tag, the git history, and the running pod must always tell the same story — if they ever disagree,
-someone bypassed the loop.</p>
+<p><span class="para-num">9-3.</span><strong>Why immutable tags?</strong> The image is tagged with its
+commit SHA, so a running version can always be traced to the exact code that produced it. It also makes
+rollback trivial: point the manifest at the previous tag (via <code>git revert</code>) and sync. The tag,
+the git history, and the running pod must always tell the same story — if they ever disagree, someone
+bypassed the loop.</p>
 
-<h2 id="ch8">Chapter 8 — Glossary</h2>
+<p><span class="para-num">9-4.</span><strong>Verification on AWS (2026-08-13).</strong> Live-build results
+are appended here after the run completes — the actual <code>terraform apply</code> outcome, the defects
+hit (the us-east-1 bucket quirk, the v21 renames, the KMS/encryption wiring, the Karpenter sub-module,
+the plan-time Kubernetes-provider error that moved the NodePool into gitops), and the
+<code>verify.sh</code> outcome. This chapter is where the manual earns the streaming-project standard:
+commands that actually ran, defects actually hit.</p>
+
+<h2 id="ch10">Chapter 10 — Glossary</h2>
 
 <div class="tblwrap"><table class="data">
 <tr><th>Term</th><th>Definition</th></tr>
 <tr><td>EKS</td><td>Amazon's managed Kubernetes: AWS runs the control plane; you run worker nodes.</td></tr>
-<tr><td>Pod</td><td>The smallest schedulable unit in Kubernetes: one or more containers sharing a network namespace.</td></tr>
-<tr><td>Deployment</td><td>Declarative controller for a set of identical pods; owns rollouts and rollbacks.</td></tr>
-<tr><td>Service</td><td>Stable network endpoint in front of a set of pods; the thing the ingress talks to.</td></tr>
-<tr><td>Namespace</td><td>A named scope for Kubernetes objects; the tenancy boundary in this project.</td></tr>
+<tr><td>Pod</td><td>The smallest schedulable unit: one or more containers sharing a network namespace.</td></tr>
+<tr><td>Deployment</td><td>Declarative controller for identical pods; owns rollouts and rollbacks.</td></tr>
+<tr><td>Service</td><td>Stable network endpoint in front of a set of pods; what the ingress talks to.</td></tr>
+<tr><td>Namespace</td><td>A named scope for Kubernetes objects; the tenancy boundary here.</td></tr>
 <tr><td>ResourceQuota</td><td>Admission-time limit on total resources a namespace may consume.</td></tr>
-<tr><td>LimitRange</td><td>Per-pod minimum/maximum/defaults for resource requests and limits inside a namespace.</td></tr>
+<tr><td>LimitRange</td><td>Per-pod min/max/defaults for resource requests and limits inside a namespace.</td></tr>
 <tr><td>NetworkPolicy</td><td>Declarative firewall between pods, enforced by the CNI on the data path.</td></tr>
-<tr><td>Ingress</td><td>Declarative rule mapping hostnames/paths to Services; realized as an ALB here.</td></tr>
-<tr><td>HPA</td><td>HorizontalPodAutoscaler — scales pod replicas based on observed utilization.</td></tr>
-<tr><td>Karpenter</td><td>Node autoscaler — provisions and consolidates EC2 nodes to fit pending pods.</td></tr>
-<tr><td>ArgoCD</td><td>GitOps controller — reconciles live cluster state to the desired state in git.</td></tr>
-<tr><td>GitOps</td><td>The practice of making git the single source of truth and a controller the deployer.</td></tr>
-<tr><td>IRSA</td><td>IAM Roles for Service Accounts — pods assume scoped IAM roles without keys.</td></tr>
-<tr><td>OIDC</td><td>OpenID Connect federation — lets CI prove identity to AWS with short-lived tokens.</td></tr>
-<tr><td>ECR</td><td>Amazon's container registry; stores the five demo images under immutable SHA tags.</td></tr>
+<tr><td>Ingress</td><td>Declarative rule mapping hostnames to Services; realized as an ALB here.</td></tr>
+<tr><td>HPA</td><td>HorizontalPodAutoscaler — scales replicas based on observed utilization.</td></tr>
+<tr><td>Karpenter</td><td>Node autoscaler — provisions/consolidates EC2 nodes to fit pending pods.</td></tr>
+<tr><td>NodePool / EC2NodeClass</td><td>Karpenter's two CRDs: <em>when to scale</em> (NodePool) and <em>what nodes look like</em> (EC2NodeClass).</td></tr>
+<tr><td>ArgoCD</td><td>GitOps controller — reconciles live state to the desired state in git.</td></tr>
+<tr><td>App-of-Apps</td><td>ArgoCD pattern where one parent Application deploys all child Applications.</td></tr>
+<tr><td>GitOps</td><td>Making git the single source of truth and a controller the deployer.</td></tr>
+<tr><td>IRSA</td><td>IAM Roles for Service Accounts — pods assume scoped roles without keys.</td></tr>
+<tr><td>OIDC</td><td>OpenID Connect federation — CI proves identity with short-lived tokens.</td></tr>
+<tr><td>Pod Identity</td><td>EKS-level association between a service account and an IAM role (used by the Karpenter controller).</td></tr>
+<tr><td>ECR</td><td>Amazon's container registry; stores the demo images under immutable SHA tags.</td></tr>
 <tr><td>ALB</td><td>Application Load Balancer — the AWS L7 load balancer the ingress controller manages.</td></tr>
-<tr><td>kube-prometheus-stack</td><td>Helm chart bundling Prometheus, Grafana, node-exporter, and kube-state-metrics.</td></tr>
-<tr><td>Terraform state</td><td>The recorded inventory of what you own (S3) plus the lock (DynamoDB); basis of plan/apply/destroy.</td></tr>
-<tr><td>App-of-Apps</td><td>An ArgoCD pattern where one "parent" Application deploys all other Applications.</td></tr>
+<tr><td>kube-prometheus-stack</td><td>Helm chart bundling Prometheus, Grafana, node-exporter, kube-state-metrics.</td></tr>
+<tr><td>Terraform state</td><td>Recorded inventory of what you own (S3) + lock (DynamoDB); basis of plan/apply/destroy.</td></tr>
 <tr><td>Self-heal</td><td>ArgoCD behavior: any drift from git is corrected automatically, even deletions.</td></tr>
 </table></div>
 
-<p class="dist">End of document — TM-LNKFY-MP-002 Rev A · 2026-08-13 · Companion: TM-LNKFY-MP-001.</p>
+<p class="dist">End of document — TM-LNKFY-MP-002 Rev B · 2026-08-13 · Companion: TM-LNKFY-MP-001.</p>
 
 </div>
 </body>

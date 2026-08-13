@@ -49,20 +49,8 @@ resource "helm_release" "karpenter" {
   ]
 }
 
-resource "kubernetes_manifest" "karpenter_node_pool" {
-  depends_on = [helm_release.karpenter]
+# NodePool + EC2NodeClass live in gitops/karpenter/ (gitops/bootstrap/README.md)
+# and are applied AFTER the controller above is running. Keeping them out of
+# this apply avoids a plan-time "no client config" error — the Kubernetes
+# provider cannot build a REST client before the cluster exists.
 
-  manifest = yamldecode(templatefile("${path.module}/manifests/karpenter-node-pool.yaml.tpl", {
-    capacity_type  = var.karpenter_capacity_type
-    instance_types = join(", ", formatlist("\"%s\"", var.karpenter_instance_types))
-  }))
-}
-
-resource "kubernetes_manifest" "karpenter_ec2_node_class" {
-  depends_on = [helm_release.karpenter]
-
-  manifest = yamldecode(templatefile("${path.module}/manifests/karpenter-ec2nodeclass.yaml.tpl", {
-    cluster_name = local.name
-    node_role    = module.karpenter.node_iam_role_name
-  }))
-}

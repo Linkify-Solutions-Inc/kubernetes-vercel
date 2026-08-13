@@ -1,0 +1,18 @@
+# Karpenter EC2NodeClass — which nodes look like. `role` must match the node
+# IAM role created by the terraform-aws-modules/eks//modules/karpenter module
+# (node_iam_role_name = "mini-paas"). Discovery is by tag.
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2
+  role: "mini-paas"
+  subnetSelectorTerms:
+    - tags:
+        "karpenter.sh/discovery": "mini-paas"
+  securityGroupSelectorTerms:
+    - tags:
+        "kubernetes.io/cluster/mini-paas": "owned"
+  metadataOptions:
+    httpTokens: required

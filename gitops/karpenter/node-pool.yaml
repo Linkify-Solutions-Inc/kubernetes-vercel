@@ -1,3 +1,6 @@
+# Karpenter NodePool (applied AFTER the Karpenter controller is installed —
+# see gitops/bootstrap/README.md). This is the "machine dial": Karpenter buys
+# nodes when pods don't fit and consolidates them away when idle.
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
@@ -11,10 +14,10 @@ spec:
           values: ["amd64"]
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["${capacity_type}"]
+          values: ["on-demand"]
         - key: node.kubernetes.io/instance-type
           operator: In
-          values: [${instance_types}]
+          values: ["t3.medium"]
       nodeClassRef:
         name: default
   disruption:
