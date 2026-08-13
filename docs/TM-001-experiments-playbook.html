@@ -527,6 +527,8 @@ surprise AWS bill is the one failure that cannot be rolled back.</p>
 <tr><td>Nodes exist but never downscale</td><td>Karpenter consolidation</td><td>Stop the load; wait for the consolidation window; check <code>kubectl get nodes</code>.</td></tr>
 <tr><td><code>helm install</code> fails: <em>no endpoints available for aws-load-balancer-webhook-service</em></td><td>ALB controller webhook race</td><td>The ALB controller mutates every Service; it must be Ready first. Block on <code>kubectl -n kube-system rollout status deployment/aws-load-balancer-controller</code>, then re-run. The repo's Helm install uses <code>wait = true</code> for this reason.</td></tr>
 <tr><td>Second <code>karpenter</code> replica Pending (anti-affinity)</td><td>Single-node cluster</td><td>The chart defaults to 2 replicas with hard pod anti-affinity. Set <code>replicas: 1</code> in <code>infra/values/karpenter-values.yaml.tpl</code>.</td></tr>
+<tr><td>CI fails: <em>Not authorized to perform sts:AssumeRoleWithWebIdentity</em></td><td>OIDC thumbprint rotation</td><td>GitHub rotated its OIDC certificate. Add the current thumbprint to <code>github_actions_thumbprints</code> in <code>infra/variables.tf</code> (keep the old) and re-apply. Verify with <code>echo | openssl s_client -servername token.actions.githubusercontent.com -connect token.actions.githubusercontent.com:443 | openssl x509 -fingerprint -noout -sha1</code>.</td></tr>
+<tr><td>Ingress exists but no ALB is created</td><td>Subnet discovery</td><td>The ALB controller needs public subnets tagged <code>kubernetes.io/role/elb</code>. It is set in <code>infra/main.tf</code> (<code>public_subnet_tags</code>).</td></tr>
 </table></div>
 
 <h2 id="appB">Appendix B — Cost table</h2>

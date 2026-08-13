@@ -299,6 +299,9 @@ marked. Read them with Chapter 3's flows in mind — every arrow in Chapter 3 re
   private_subnet_tags = {
     "karpenter.sh/discovery" = local.name   # Karpenter finds private subnets by tag
   }
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"          # ALB controller discovers public subnets by this tag
+  }
   tags = local.tags
 }
 
@@ -414,7 +417,7 @@ resource "helm_release" "karpenter" {
 <pre><code>resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [var.github_actions_thumbprint]
+  thumbprint_list = var.github_actions_thumbprints  # list — keep old + current across rotations
 }
 
 data "aws_iam_policy_document" "github_actions_assume" {
