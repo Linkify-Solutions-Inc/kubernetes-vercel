@@ -21,14 +21,18 @@ echo " FULL TEARDOWN — every experiment resource goes"
 echo "  started $(ts)"
 echo "================================================"
 
-echo ">> $(ts) [1/6] stop GitOps reconciliation (ArgoCD must not fight the destroy)"
+echo ">> $(ts) [1/7] stop GitOps reconciliation (ArgoCD must not fight the destroy)"
 if kubectl get application -n argocd >/dev/null 2>&1; then
+  # Disarm selfHeal on every Application first, or ArgoCD resurrects each
+  # resource the instant we delete it (the streaming project's A1 ordering rule).
+  kubectl -n argocd patch application --all --type merge \
+    -p '{"spec":{"syncPolicy":{"automated":null}}}' >/dev/null 2>&1 || true
   kubectl delete -f gitops/bootstrap/app-of-apps.yaml >/dev/null 2>&1 || true
   helm uninstall argocd -n argocd >/dev/null 2>&1 || true
   kubectl delete ns argocd --ignore-not-found >/dev/null 2>&1 || true
 fi
 
-echo ">> $(ts) [2/6] delete every non-system namespace (catches experiment leftovers)"
+echo ">> $(ts) [2/7] delete every non-system namespace (catches experiment leftovers)"
 # Capture the list to a file first: under `set -o pipefail` a pipeline that
 # selects nothing (grep exit 1) would kill the whole script.
 kubectl get ns -o jsonpath='{.items[*].metadata.name}' 2>/dev/null \
@@ -62,7 +66,7 @@ while read -r ns; do
 done < /tmp/minipaas-teardown-ns.txt
 rm -f /tmp/minipaas-teardown-ns.txt
 
-echo ">> $(ts) [3/6] pre-clean destroy blockers, then destroy infrastructure via Terraform"
+echo ">> $(ts) [3/7] pre-clean destroy blockers, then destroy infrastructure via Terraform"
 cd "$(dirname "$0")/../infra"
 # Pre-clean, BEFORE the destroy: the ALB controller and Karpenter create
 # resources terraform cannot see (the ALB "Shared Backend" SG, Karpenter-
@@ -110,7 +114,7 @@ run_destroy() {
 }
 run_destroy
 
-echo ">> $(ts) [4/6] residual sweep — things experiments could have created outside Terraform"
+echo ">> $(ts) [4/7] residual sweep — things experiments could have created outside Terraform"
 
 # Each sweep block ends with `|| true`: under `set -o pipefail` a `grep -v` that
 # selects nothing (a fully clean account) exits 1 and would kill the whole
@@ -166,7 +170,7 @@ if [ "$DESTROY_OK" != "1" ]; then
   run_destroy
 fi
 
-echo ">> $(ts) [5/6] remove the state backend (S3 + DynamoDB), read from backend.tfvars"
+echo ">> $(ts) [5/7] remove the state backend (S3 + DynamoDB), read from backend.tfvars"
 # Only remove the state if the destroy actually completed — otherwise the
 # EKS cluster/VPC/IAM stay orphaned and billable with no state to destroy them.
 if [ "$DESTROY_OK" != "1" ]; then
@@ -182,5 +186,33 @@ elif [ -f backend.tfvars ]; then
   fi
 fi
 
-echo ">> $(ts) [6/6] done. The account should be back to ~\$0. Confirm in AWS Cost Explorer tomorrow."
+echo ">> $(ts) [6/7] zero-cost audit — every resource line below should be EMPTY"
+# Final proof of cleanup (ported from the streaming project's [9/9]): print
+# each billable resource type; anything still present shows up here, so "the
+# account is clean" is verified, not assumed.
+LEFTOVERS=0
+audit(){ # audit <label> <aws cmd args...>
+  local label="$1"; shift
+  local out
+  out=$("$@" 2>/dev/null | tr '\n' ' ' || true)
+  if [ -n "$out" ]; then LEFTOVERS=$((LEFTOVERS+1)); fi
+  printf '    %-18s %s\n' "$label:" "${out:-<empty>}"
+}
+audit "EC2 instances"     aws ec2 describe-instances --region "$REGION" --filters Name=instance-state-name,Values=running,pending,stopping,stopped --query 'Reservations[].Instances[].InstanceId' --output text
+audit "EBS volumes"       aws ec2 describe-volumes --region "$REGION" --query 'Volumes[].VolumeId' --output text
+audit "Elastic IPs"       aws ec2 describe-addresses --region "$REGION" --query 'Addresses[].AllocationId' --output text
+audit "Load balancers"    aws elbv2 describe-load-balancers --region "$REGION" --query 'LoadBalancers[].LoadBalancerName' --output text
+audit "VPCs (non-default)" aws ec2 describe-vpcs --region "$REGION" --query 'Vpcs[?IsDefault==`false`].VpcId' --output text
+audit "NAT gateways"      aws ec2 describe-nat-gateways --region "$REGION" --filter Name=state,Values=available,pending --query 'NatGateways[].NatGatewayId' --output text
+audit "EKS clusters"      aws eks list-clusters --region "$REGION" --query 'clusters' --output text
+audit "ECR repos"         aws ecr describe-repositories --region "$REGION" --query 'repositories[].repositoryName' --output text
+audit "S3 buckets"        aws s3api list-buckets --query 'Buckets[].Name' --output text
+audit "DynamoDB tables"   aws dynamodb list-tables --region "$REGION" --query 'TableNames' --output text
+if [ "$LEFTOVERS" -gt 0 ]; then
+  echo "    !! $(ts) $LEFTOVERS resource type(s) still show leftovers above — investigate before declaring done."
+else
+  echo "    ✓ $(ts) clean — no billable resources remain."
+fi
+
+echo ">> $(ts) [7/7] done. The account should be back to ~\$0. Confirm in AWS Cost Explorer tomorrow."
 echo "    NOT touched by design: IAM Identity Center / SSO permission sets (your login)."
