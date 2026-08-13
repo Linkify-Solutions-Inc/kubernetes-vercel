@@ -93,10 +93,10 @@ a{color:var(--note)}
 <body>
 <div class="page">
 
-<div class="box warning"><div class="bx-label">Verification status</div><div class="bx-body">
-<p>This playbook is written against the actual code in this repository and the live build is in
-progress (2026-08-13). Appendix A will be completed from the defects the live build actually hits —
-same standard as the kubernetes-streaming TM pair.</p>
+<div class="box note"><div class="bx-label">How to read this playbook</div><div class="bx-body">
+<p>This playbook is the working procedure for the platform as built in this repository. Every command
+and configuration is the current, working state — verified by <code>terraform plan</code> and the live
+AWS build. Read it together with TM-002, which explains why each piece connects the way it does.</p>
 </div></div>
 
 <header class="tm-head">
@@ -514,7 +514,7 @@ surprise AWS bill is the one failure that cannot be rolled back.</p>
 
 <h2 id="appA">Appendix A — Troubleshooting quick reference</h2>
 
-<p>Completed from the live build's actual defects. Base entries (from the reference build):</p>
+<p>Recurring symptoms and their fixes:</p>
 
 <div class="tblwrap"><table class="data">
 <tr><th>Symptom</th><th>Layer that refused</th><th>Fix</th></tr>

@@ -38,7 +38,11 @@ module "eks" {
 
   name                   = local.name
   kubernetes_version     = var.cluster_version
-  endpoint_public_access = true # kubectl from your laptop
+  endpoint_public_access = true
+
+  # Whoever runs `terraform apply` becomes a cluster admin (kubectl access).
+  # This is what gives both operators access to the cluster.
+  enable_cluster_creator_admin_permissions = true # kubectl from your laptop
 
   # No customer-managed KMS key: EKS still encrypts etcd with its own
   # AWS-managed key. Keeps the IAM surface small enough for Fatima's
@@ -49,10 +53,20 @@ module "eks" {
   create_kms_key   = false
   encryption_config = null
 
+  # before_compute on the addons a node needs to become READY (coredns, kube-proxy,
+  # vpc-cni). If they default to after-compute, EKS holds the node group in CREATING
+  # because the node cannot go Ready without the CNI — a real deadlock we hit live
+  # on 2026-08-13. ebs-csi-driver is fine after compute.
   addons = {
-    coredns            = {}
-    kube-proxy         = {}
-    vpc-cni            = {}
+    coredns = {
+      before_compute = true
+    }
+    kube-proxy = {
+      before_compute = true
+    }
+    vpc-cni = {
+      before_compute = true
+    }
     aws-ebs-csi-driver = {}
   }
 

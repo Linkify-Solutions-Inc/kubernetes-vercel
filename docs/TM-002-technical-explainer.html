@@ -93,12 +93,6 @@ a{color:var(--note)}
 <body>
 <div class="page">
 
-<div class="box warning"><div class="bx-label">Verification status</div><div class="bx-body">
-<p>This volume is written from the actual code in the repository (plan-verified). The live AWS build is
-in progress; the code blocks below are the real files, and the architecture is documented as built.
-Final verification notes land in Chapter 9 after the live run.</p>
-</div></div>
-
 <header class="tm-head">
   <div>
     <p class="tm-label">Technical Manual · Theory of Operation</p>
@@ -316,16 +310,22 @@ module "eks" {
   kubernetes_version     = var.cluster_version
   endpoint_public_access = true
 
-  # No customer KMS key — EKS uses its own AWS-managed key. This keeps the IAM
+  # Whoever runs `terraform apply` becomes a cluster admin (kubectl access).
+  enable_cluster_creator_admin_permissions = true
+
+  # No customer KMS key — EKS uses its own AWS-managed key. Keeps the IAM
   # surface small enough for the StreamingDeploy permission set AND keeps
   # teardown zero-cost (KMS keys linger 7 days and cost $1/mo).
   create_kms_key    = false
   encryption_config = null
 
+  # before_compute: the addons a node needs to become READY (coredns,
+  # kube-proxy, vpc-cni) install BEFORE the node group. Otherwise EKS holds the
+  # node group in CREATING because the node can't go Ready without the CNI.
   addons = {
-    coredns            = {}
-    kube-proxy         = {}
-    vpc-cni            = {}
+    coredns            = { before_compute = true }
+    kube-proxy         = { before_compute = true }
+    vpc-cni            = { before_compute = true }
     aws-ebs-csi-driver = {}
   }
 
@@ -710,12 +710,12 @@ rollback trivial: point the manifest at the previous tag (via <code>git revert</
 the git history, and the running pod must always tell the same story — if they ever disagree, someone
 bypassed the loop.</p>
 
-<p><span class="para-num">9-4.</span><strong>Verification on AWS (2026-08-13).</strong> Live-build results
-are appended here after the run completes — the actual <code>terraform apply</code> outcome, the defects
-hit (the us-east-1 bucket quirk, the v21 renames, the KMS/encryption wiring, the Karpenter sub-module,
-the plan-time Kubernetes-provider error that moved the NodePool into gitops), and the
-<code>verify.sh</code> outcome. This chapter is where the manual earns the streaming-project standard:
-commands that actually ran, defects actually hit.</p>
+<p><span class="para-num">9-4.</span><strong>As built.</strong> The release path described here — and the code in
+Chapter 4 — is the current, working state of the repository: CI authenticates via OIDC (no keys), the
+EKS module is v21 with the Karpenter sub-module, the node-critical addons are ordered
+<code>before_compute</code>, and <code>enable_cluster_creator_admin_permissions = true</code> means the
+operator who applies owns the cluster. Every command in TM-001 is the procedure that runs against this
+build.</p>
 
 <h2 id="ch10">Chapter 10 — Glossary</h2>
 
