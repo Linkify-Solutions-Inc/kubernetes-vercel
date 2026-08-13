@@ -7,7 +7,7 @@ RUN npm install --omit=dev
 
 COPY src ./src
 
-USER 1000 # node image UID — numeric so runAsNonRoot can verify
+USER 1000
 
 EXPOSE 8081
 

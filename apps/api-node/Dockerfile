@@ -8,7 +8,7 @@ RUN npm install --omit=dev
 COPY src ./src
 
 # Run as non-root (REQ-6-5)
-USER 1000 # node image UID — numeric so runAsNonRoot can verify
+USER 1000
 
 EXPOSE 3000
 
