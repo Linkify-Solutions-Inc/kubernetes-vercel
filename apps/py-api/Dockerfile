@@ -13,4 +13,4 @@ USER 65534
 EXPOSE 3000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000"]
-# build 2026-08-13
+# build 2026-08-13 v2

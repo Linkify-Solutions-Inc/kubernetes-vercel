@@ -26,6 +26,12 @@ module "vpc" {
     "karpenter.sh/discovery" = local.name
   }
 
+  # The ALB controller discovers public subnets by the kubernetes.io/role/elb
+  # tag. Without it, the ALB is never created ("couldn't auto-discover subnets").
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+
   tags = local.tags
 }
 
