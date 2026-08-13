@@ -18,7 +18,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: web-node
-          image: 242626138899.dkr.ecr.us-east-1.amazonaws.com/mini-paas/web-node:2fd97e54c95d40e798a2c95e50cc8123ab09d9a7
+          image: 242626138899.dkr.ecr.us-east-1.amazonaws.com/mini-paas/web-node:13b447137f88329c0525c8af3165270ae647ee6d
           ports:
             - name: http
               containerPort: 8080
