@@ -63,7 +63,11 @@ rm -f /tmp/minipaas-teardown-ns.txt
 
 echo ">> $(ts) [3/6] destroy infrastructure via Terraform (the bill killer)"
 cd "$(dirname "$0")/../infra"
-terraform destroy -auto-approve -no-color 2>&1 | grep -E "Destroy complete|Error:" || true
+# Stream the FULL destroy output live so you can see it progressing
+# (EKS destroy takes ~15-25 min). `tee` logs a copy for later inspection;
+# `|| true` lets the residual sweep in [4/6] catch anything left behind.
+terraform destroy -auto-approve -no-color 2>&1 \
+  | tee /tmp/minipaas-terraform-destroy.log || true
 
 echo ">> $(ts) [4/6] residual sweep — things experiments could have created outside Terraform"
 REGION="${AWS_REGION:-us-east-1}"
