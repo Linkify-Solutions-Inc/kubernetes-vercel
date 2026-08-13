@@ -537,6 +537,7 @@ surprise AWS bill is the one failure that cannot be rolled back.</p>
 <tr><td>HPA: <em>unable to get cpu utilization / metrics API not found</em></td><td>metrics-server missing</td><td>HPA needs the <code>metrics.k8s.io</code> API, provided by metrics-server (not kube-prometheus-stack). It is deployed via <code>gitops/apps/metrics-server.yaml</code>.</td></tr>
 <tr><td>CI promotion fails: <em>! [rejected] main -> main (fetch first)</em></td><td>Concurrent push race</td><td>The ci-bot push races with human pushes. The workflow's Promote step rebases first (<code>git pull --rebase origin main</code>). If you hit it manually, pull --rebase before pushing your gitops change.</td></tr>
 <tr><td>Prometheus pod never created; operator logs <em>"prometheuses … not installed"</em></td><td>ArgoCD skips Helm CRDs</td><td>ArgoCD renders Helm charts via <code>helm template</code>, which omits <code>crds/</code>. Apply the CRDs first: <code>kubectl apply --server-side=true -f gitops/crds/</code> (before the app-of-apps). If the operator already started without them, restart it.</td></tr>
+<tr><td>App returns <em>504 Gateway Time-out</em> through the ALB</td><td>Node SG missing ALB port rule</td><td>The ALB controller adds node-SG ingress rules per service and can miss ports. Check <code>aws elbv2 describe-target-health</code> for <em>Target.Timeout</em>. The fix is declarative: <code>node_security_group_additional_rules</code> in <code>infra/main.tf</code> allows the app ports from the VPC CIDR.</td></tr>
 </table></div>
 
 <h2 id="appB">Appendix B — Cost table</h2>

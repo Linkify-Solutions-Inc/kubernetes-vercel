@@ -316,6 +316,18 @@ module "eks" {
   # Whoever runs `terraform apply` becomes a cluster admin (kubectl access).
   enable_cluster_creator_admin_permissions = true
 
+  # ALB -> app ports, declared so the node SG always allows the ALB. The ALB
+  # controller adds node-SG ingress rules per service and can miss ports.
+  node_security_group_additional_rules = {
+    ingress_app_ports = {
+      description = "ALB app-port ingress (api,py,go 3000; web 8080; worker 8081)"
+      protocol    = "tcp"
+      from_port   = 3000
+      to_port     = 8081
+      cidr_blocks = [module.vpc.vpc_cidr_block]
+    }
+  }
+
   # No customer KMS key — EKS uses its own AWS-managed key. Keeps the IAM
   # surface small enough for the StreamingDeploy permission set AND keeps
   # teardown zero-cost (KMS keys linger 7 days and cost $1/mo).

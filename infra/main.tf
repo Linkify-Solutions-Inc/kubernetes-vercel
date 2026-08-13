@@ -50,6 +50,19 @@ module "eks" {
   # This is what gives both operators access to the cluster.
   enable_cluster_creator_admin_permissions = true # kubectl from your laptop
 
+  # ALB traffic to app ports (health checks + routing). Declared here so the
+  # node SG always allows the ALB — the ALB controller's per-service SG rule
+  # bookkeeping can miss ports (hit live on 2026-08-13: only 8081 was added).
+  node_security_group_additional_rules = {
+    ingress_app_ports = {
+      description = "ALB app-port ingress (api,py,go 3000; web 8080; worker 8081)"
+      protocol    = "tcp"
+      from_port   = 3000
+      to_port     = 8081
+      cidr_blocks = [module.vpc.vpc_cidr_block]
+    }
+  }
+
   # No customer-managed KMS key: EKS still encrypts etcd with its own
   # AWS-managed key. Keeps the IAM surface small enough for Fatima's
   # StreamingDeploy permission set AND keeps teardown truly zero-cost
