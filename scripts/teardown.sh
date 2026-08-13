@@ -222,10 +222,51 @@ elif [ -f backend.tfvars ]; then
   BUCKET=$(awk -F'"' '/^bucket/{print $2}' backend.tfvars)
   TABLE=$(awk -F'"' '/dynamodb_table/{print $2}' backend.tfvars)
   if [ -n "$BUCKET" ]; then
-    aws s3 rb "s3://$BUCKET" --force >/dev/null 2>&1 && echo "    - $(ts) state bucket $BUCKET removed" || echo "    - $(ts) (state bucket already gone)"
+    # The state bucket has versioning ENABLED — `aws s3 rb --force` cannot
+    # remove versioned objects (BucketNotEmpty), and each failed destroy wrote
+    # another state version. Delete every version + delete marker first
+    # (paginated), then the bucket itself.
+    if aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
+      echo "      - $(ts) clearing object versions from $BUCKET"
+      python3 - "$BUCKET" <<'PYEOF' 2>/dev/null || true
+import json, subprocess, sys
+b = sys.argv[1]
+def run(*a): return subprocess.run(a, capture_output=True, text=True, check=True)
+objs = []
+km = vm = ""
+while True:
+    cmd = ["aws","s3api","list-object-versions","--bucket",b,"--output","json"]
+    if km: cmd += ["--key-marker",km,"--version-id-marker",vm]
+    d = json.loads(run(*cmd).stdout)
+    objs += [{"Key":v["Key"],"VersionId":v["VersionId"]} for v in d.get("Versions",[])]
+    objs += [{"Key":m["Key"],"VersionId":m["VersionId"]} for m in d.get("DeleteMarkers",[])]
+    if not d.get("IsTruncated"): break
+    km, vm = d.get("NextKeyMarker",""), d.get("NextVersionIdMarker","")
+for i in range(0, len(objs), 1000):
+    run("aws","s3api","delete-objects","--bucket",b,"--delete",
+        json.dumps({"Objects":objs[i:i+1000],"Quiet":True}))
+print(f"deleted {len(objs)} versions")
+PYEOF
+      if aws s3 rb "s3://$BUCKET" --force >/dev/null 2>&1; then
+        echo "    - $(ts) state bucket $BUCKET removed"
+      else
+        echo "    - $(ts) state bucket $BUCKET STILL PRESENT — re-run the teardown to retry"
+      fi
+    else
+      echo "    - $(ts) (state bucket already gone)"
+    fi
   fi
   if [ -n "$TABLE" ]; then
-    aws dynamodb delete-table --table-name "$TABLE" >/dev/null 2>&1 && echo "    - $(ts) lock table $TABLE removed" || echo "    - $(ts) (lock table already gone)"
+    # delete-table returns as soon as the table enters DELETING — wait for it
+    # to be fully gone so the phase-6 audit reports a clean account.
+    if aws dynamodb describe-table --table-name "$TABLE" >/dev/null 2>&1; then
+      aws dynamodb delete-table --table-name "$TABLE" >/dev/null 2>&1 || true
+      aws dynamodb wait table-not-exists --table-name "$TABLE" >/dev/null 2>&1 \
+        && echo "    - $(ts) lock table $TABLE removed" \
+        || echo "    - $(ts) lock table $TABLE still deleting — will clear shortly"
+    else
+      echo "    - $(ts) (lock table already gone)"
+    fi
   fi
 fi
 
