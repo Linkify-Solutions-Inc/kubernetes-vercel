@@ -16,6 +16,19 @@ export AWS_PROFILE="${AWS_PROFILE:-streaming-admin}"
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 REGION="${AWS_REGION:-us-east-1}"
 
+# Discovery-based, like the streaming project: find the VPC by its tags via the
+# AWS API — NOT via `terraform output`, which also needs the state lock and so
+# fails exactly when a stale lock from an interrupted run is present (the
+# chicken-and-egg that skipped the SG pre-clean on 2026-08-13).
+find_vpc() {
+  local v
+  v=$(aws ec2 describe-vpcs --region "$REGION" \
+    --filters "Name=tag:Name,Values=mini-paas" "Name=tag:Project,Values=mini-paas" \
+    --query 'Vpcs[0].VpcId' --output text 2>/dev/null || true)
+  [ "$v" = "None" ] && v=""
+  echo "$v"
+}
+
 echo "================================================"
 echo " FULL TEARDOWN — every experiment resource goes"
 echo "  started $(ts)"
@@ -74,7 +87,7 @@ cd "$(dirname "$0")/../infra"
 # VPC deletion — and force a slow second pass. Remove them up front so one
 # destroy pass completes. Plain for-loops, not grep|while pipelines: under
 # `set -o pipefail` a grep that selects nothing would kill the script.
-VPC_ID=$(terraform output -raw vpc_id 2>/dev/null || echo "")
+VPC_ID=$(find_vpc)
 if [ -n "$VPC_ID" ]; then
   echo "    - $(ts) terminating stray instances in the VPC (Karpenter-orphaned nodes block SG deletion)"
   IDS=$(aws ec2 describe-instances --region "$REGION" \
@@ -93,6 +106,9 @@ if [ -n "$VPC_ID" ]; then
     aws ec2 delete-security-group --region "$REGION" --group-id "$sg" >/dev/null 2>&1 || true
   done
 fi
+echo "    - $(ts) destroying via Terraform. If the last step shows 'Still destroying... [id=vpc...]'"
+echo "      for a few minutes, AWS is retrying DeleteVpc — do NOT Ctrl-C. If it fails, the"
+echo "      sweep below removes any remaining SG/ENI blocker and retries automatically."
 # Stream the FULL destroy output live so you can see it progressing (EKS
 # destroy takes ~15-25 min). A Ctrl-C mid-destroy leaves the state lock held;
 # detect that, force-unlock, and retry once. DESTROY_OK gates phase 5.
@@ -152,7 +168,7 @@ aws sqs list-queues --region "$REGION" --output text 2>/dev/null \
 echo "    Security groups (non-default, leftover in the VPC — e.g. the ALB controller's shared SG):"
 # Plain for-loop, not a grep|while pipeline: under `set -o pipefail` a grep that
 # selects nothing would kill the whole script (the phase-2 landmine).
-VPC_ID=$(terraform output -raw vpc_id 2>/dev/null || echo "")
+VPC_ID=$(find_vpc)
 if [ -n "$VPC_ID" ]; then
   SGS=$(aws ec2 describe-security-groups --region "$REGION" \
     --filters "Name=vpc-id,Values=$VPC_ID" \
