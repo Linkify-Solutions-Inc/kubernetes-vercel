@@ -1,6 +1,6 @@
-# Karpenter NodePool (applied AFTER the Karpenter controller is installed —
-# see gitops/bootstrap/README.md). This is the "machine dial": Karpenter buys
-# nodes when pods don't fit and consolidates them away when idle.
+# Karpenter NodePool (applied AFTER the Karpenter controller is installed).
+# This is the "machine dial": Karpenter buys nodes when pods don't fit and
+# consolidates them away after `consolidateAfter` of idle time.
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
@@ -19,7 +19,9 @@ spec:
           operator: In
           values: ["t3.medium"]
       nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
         name: default
   disruption:
-    consolidationPolicy: WhenUnderutilized
-    expireAfter: 720h
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 5m

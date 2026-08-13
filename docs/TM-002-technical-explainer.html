@@ -322,11 +322,13 @@ module "eks" {
   # before_compute: the addons a node needs to become READY (coredns,
   # kube-proxy, vpc-cni) install BEFORE the node group. Otherwise EKS holds the
   # node group in CREATING because the node can't go Ready without the CNI.
+  # eks-pod-identity-agent is required — Karpenter authenticates via Pod Identity.
+  # No aws-ebs-csi-driver — the demo apps are stateless (no PVCs).
   addons = {
-    coredns            = { before_compute = true }
-    kube-proxy         = { before_compute = true }
-    vpc-cni            = { before_compute = true }
-    aws-ebs-csi-driver = {}
+    coredns              = { before_compute = true }
+    kube-proxy           = { before_compute = true }
+    vpc-cni              = { before_compute = true }
+    eks-pod-identity-agent = { before_compute = true }
   }
 
   vpc_id     = module.vpc.vpc_id
@@ -638,6 +640,16 @@ touch daily. Knowing which file answers which question ("how is the cluster made
 <dt>GitHub OIDC</dt><dd>The CI job presents a signed token to AWS; AWS verifies it and mints short-lived credentials. Trusted for minutes per run instead of holding keys forever.</dd>
 <dt>Terraform state</dt><dd>S3 bucket (state) + DynamoDB (lock). The ledger that makes plan/apply/destroy possible — and the thing that makes the whole project disposable.</dd>
 </dl></div></div>
+
+<div class="box note"><div class="bx-label">Note — two startup facts</div><div class="bx-body">
+<p><strong>ALB controller webhook ordering.</strong> The controller registers a mutating webhook for
+every Service object; any Service created before the controller pod is Ready fails with <em>"no
+endpoints available"</em>. This is why its Helm release installs with <code>wait = true</code>, and why
+the manual sequence blocks on <code>kubectl rollout status</code> before creating Services.</p>
+<p><strong>Karpenter runs one replica.</strong> The chart's default of two uses hard pod anti-affinity,
+which a one-node cluster cannot satisfy (the second replica Pends forever). The values file pins
+<code>replicas: 1</code>.</p>
+</div></div>
 
 <h2 id="ch7">Chapter 7 — Multi-tenancy &amp; isolation explained</h2>
 

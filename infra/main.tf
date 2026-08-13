@@ -54,9 +54,12 @@ module "eks" {
   encryption_config = null
 
   # before_compute on the addons a node needs to become READY (coredns, kube-proxy,
-  # vpc-cni). If they default to after-compute, EKS holds the node group in CREATING
-  # because the node cannot go Ready without the CNI — a real deadlock we hit live
-  # on 2026-08-13. ebs-csi-driver is fine after compute.
+  # vpc-cni): if they default to after-compute, EKS holds the node group in CREATING
+  # because the node cannot go Ready without the CNI.
+  # eks-pod-identity-agent is required: Karpenter authenticates via EKS Pod Identity,
+  # and without this addon no credentials are injected into its pod.
+  # No aws-ebs-csi-driver: the demo apps are stateless (no PVCs), and the addon's
+  # controller crashes without a provisioned IRSA role for its service account.
   addons = {
     coredns = {
       before_compute = true
@@ -67,7 +70,9 @@ module "eks" {
     vpc-cni = {
       before_compute = true
     }
-    aws-ebs-csi-driver = {}
+    eks-pod-identity-agent = {
+      before_compute = true
+    }
   }
 
   vpc_id     = module.vpc.vpc_id
@@ -111,6 +116,12 @@ resource "helm_release" "aws_load_balancer_controller" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   version    = "1.10.1"
+
+  # wait = true: the controller registers a mutating webhook for Services; any
+  # Service created before the pod is Ready fails with "no endpoints available".
+  # Blocking here orders everything after it (karpenter's chart creates a Service).
+  wait       = true
+  timeout    = 600
 
   set {
     name  = "clusterName"
