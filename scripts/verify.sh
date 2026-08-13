@@ -22,7 +22,7 @@ echo "== Appendix D verification =="
 echo "-- cluster --"
 check "nodes Ready"                kubectl get nodes --no-headers
 check "kube-system healthy"        kubectl get pods -n kube-system --field-selector=status.phase=Running
-check "no tenant namespaces yet"   bash -c '! kubectl get ns app-api-node >/dev/null 2>&1'
+check "tenant namespaces present"  kubectl get ns app-api-node >/dev/null 2>&1
 
 echo "-- gitops / catalog --"
 check "ArgoCD apps present"        bash -c 'kubectl get applications -n argocd --no-headers | grep -c api-node >/dev/null'
