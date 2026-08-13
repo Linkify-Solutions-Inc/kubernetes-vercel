@@ -11,7 +11,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: web.__INGRESS_DOMAIN__
+    - host: web.mini-paas.local
       http:
         paths:
           - path: /
