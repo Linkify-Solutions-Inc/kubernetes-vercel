@@ -686,6 +686,11 @@ egress side instead (that is why Experiment 4-B blocks <em>outbound</em> cross-t
 watches CPU <em>utilization of the requests</em> (not the machine's CPU). Because api-node requests 50m
 CPU and the HPA targets 50%, a modest load spike crosses the threshold quickly — the demo is tuned so the
 lesson fires with light effort. What HPA cannot do is create more machine.</p>
+<p><span class="para-num">8-1a.</span><strong>HPA needs metrics-server.</strong> The HPA reads pod CPU from
+the <code>metrics.k8s.io</code> API, which is served by <strong>metrics-server</strong> — not by
+kube-prometheus-stack. Without it, HPA fails with <em>"unable to fetch metrics from resource metrics
+API"</em>. It is deployed as its own ArgoCD Application (<code>gitops/apps/metrics-server.yaml</code>)
+with <code>--kubelet-insecure-tls</code> (EKS kubelets use self-signed certs).</p>
 
 <p><span class="para-num">8-2.</span><strong>Karpenter is the machine dial.</strong> When pods exist that
 no current node can fit, Karpenter buys a node; when nodes sit idle past the consolidation window, it

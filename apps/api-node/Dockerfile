@@ -8,9 +8,9 @@ RUN npm install --omit=dev
 COPY src ./src
 
 # Run as non-root (REQ-6-5)
-USER node
+USER 1000 # node image UID — numeric so runAsNonRoot can verify
 
 EXPOSE 3000
 
 CMD ["npm", "start"]
-# build 2026-08-13 v6
+# build 2026-08-13 v7
