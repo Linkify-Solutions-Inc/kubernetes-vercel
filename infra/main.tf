@@ -40,6 +40,11 @@ module "eks" {
   kubernetes_version     = var.cluster_version
   endpoint_public_access = true # kubectl from your laptop
 
+  # No customer-managed KMS key: uses the default EKS-managed key. Keeps the
+  # IAM surface small enough for Fatima's StreamingDeploy permission set AND
+  # keeps teardown truly zero-cost (KMS keys linger 7 days and cost $1/mo).
+  create_kms_key = false
+
   addons = {
     coredns            = {}
     kube-proxy         = {}
