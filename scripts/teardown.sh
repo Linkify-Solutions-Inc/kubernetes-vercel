@@ -154,6 +154,21 @@ run_destroy() {
       echo "      - $(ts) VPC $V still has dependencies — NOT marking complete; inspect and re-run"
     fi
   fi
+  # Last resort: terraform may be unable to proceed at all (corrupted state,
+  # deleted lock table, any backend error). If the two billable resources
+  # terraform owned — the VPC and the EKS cluster — are both gone from AWS, the
+  # destroy is effectively complete even though terraform errors; phase 5 then
+  # drops the broken backend. (VPC gone implies its subnets/IGW/NAT are gone
+  # too — they cannot outlive the VPC. The phase-4 sweep cleans non-terraform
+  # leftovers like ECR/ALB/instances before phase 5 runs.)
+  if [ "$DESTROY_OK" != "1" ]; then
+    V=$(find_vpc)
+    CLUSTERS=$(aws eks list-clusters --region "$REGION" --query 'clusters' --output text 2>/dev/null || true)
+    if [ -z "$V" ] && [ -z "$CLUSTERS" ]; then
+      echo "    - $(ts) VPC and EKS cluster are both gone — treating the destroy as complete despite the backend error"
+      DESTROY_OK=1
+    fi
+  fi
 }
 run_destroy
 
