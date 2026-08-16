@@ -46,9 +46,33 @@ module "eks" {
   kubernetes_version     = var.cluster_version
   endpoint_public_access = true
 
-  # Whoever runs `terraform apply` becomes a cluster admin (kubectl access).
-  # This is what gives both operators access to the cluster.
-  enable_cluster_creator_admin_permissions = true # kubectl from your laptop
+  # Explicit admin access entries for BOTH operators, instead of the auto
+  # cluster_creator entry — the auto entry silently follows whoever runs apply
+  # (created it as StreamingDeploy, then swapped to whoever runs it next).
+  # Listing both keeps Fatima's StreamingDeploy access AND our AdminAccess.
+  enable_cluster_creator_admin_permissions = false
+  access_entries = {
+    aayush-admin = {
+      kubernetes_groups = []
+      principal_arn     = "arn:aws:iam::242626138899:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdminAccess_8d36146d2e13acf4"
+      policy_associations = {
+        admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+    fatima-deploy = {
+      kubernetes_groups = []
+      principal_arn     = "arn:aws:iam::242626138899:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_StreamingDeploy_c76ab22657ecbba5"
+      policy_associations = {
+        admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+  }
 
   # ALB traffic to app ports (health checks + routing). Declared here so the
   # node SG always allows the ALB — the ALB controller's per-service SG rule
@@ -69,7 +93,7 @@ module "eks" {
   # (KMS keys linger 7 days and cost $1/mo).
   # encryption_config = null skips the module's KMS wiring (its default {} would
   # demand a key_arn once create_kms_key is false).
-  create_kms_key   = false
+  create_kms_key    = false
   encryption_config = null
 
   # before_compute on the addons a node needs to become READY (coredns, kube-proxy,
@@ -139,8 +163,8 @@ resource "helm_release" "aws_load_balancer_controller" {
   # wait = true: the controller registers a mutating webhook for Services; any
   # Service created before the pod is Ready fails with "no endpoints available".
   # Blocking here orders everything after it (karpenter's chart creates a Service).
-  wait       = true
-  timeout    = 600
+  wait    = true
+  timeout = 600
 
   set {
     name  = "clusterName"

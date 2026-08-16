@@ -30,12 +30,16 @@ aws s3api put-bucket-encryption \
   --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 
 echo ">> creating lock table ${TABLE}"
-aws dynamodb create-table \
-  --table-name "$TABLE" \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST \
-  --region "$REGION" >/dev/null
+# Reuse an existing lock table (a previous bootstrap may have created one);
+# create-table fails with ResourceInUseException if it already exists.
+if ! aws dynamodb describe-table --table-name "$TABLE" --region "$REGION" >/dev/null 2>&1; then
+  aws dynamodb create-table \
+    --table-name "$TABLE" \
+    --attribute-definitions AttributeName=LockID,AttributeType=S \
+    --key-schema AttributeName=LockID,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST \
+    --region "$REGION" >/dev/null
+fi
 
 # create-table returns before the table is ACTIVE — wait so the first
 # terraform lock doesn't fail with ResourceNotFoundException.

@@ -13,7 +13,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "EKS Kubernetes version."
   type        = string
-  default     = "1.31"
+  default     = "1.36"
 }
 
 variable "vpc_cidr" {
@@ -64,7 +64,7 @@ variable "github_repo" {
 variable "github_actions_thumbprints" {
   description = "SHA-1 thumbprints of GitHub's OIDC TOKEN-SIGNING certificates (from the JWKS at token.actions.githubusercontent.com/.well-known/jwks). AWS accepts up to 5, so keep old + current across a rotation. Note: this is NOT the TLS leaf cert — verify with: curl -s https://token.actions.githubusercontent.com/.well-known/jwks | jq -r '.keys[].x5c[0]' | while read c; do echo \"$c\" | base64 -d | openssl x509 -inform DER -fingerprint -noout -sha1; done"
   type        = list(string)
-  default     = [
+  default = [
     "6938fd4d98bab03faadb97b34396831e3780aea1", # prior signing key (retired by GitHub 2026)
     "ca435a638a8cfed6b89364e064e08460b91c6250", # current signing key (from JWKS, verified 2026-08-13)
     "38e9b30b3a023a1b72309921a69a42fcc496c42c", # current signing key
