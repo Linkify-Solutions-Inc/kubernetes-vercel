@@ -25,3 +25,9 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      # These CRDs are 500-770 KB each — over the 262 KiB annotation limit of a
+      # client-side apply. Server-side apply keeps the manifest out of the
+      # annotation entirely; without this the CRDs fail to install and the
+      # monitoring app can't create its Prometheus CR.
+      - ServerSideApply=true
