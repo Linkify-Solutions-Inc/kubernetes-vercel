@@ -398,7 +398,7 @@ isolation without breaking your own app.</p>
 ALB, wildcard DNS, and (optionally) TLS. Satisfies REQ-3.6-1 … 3.6-4.</p>
 
 <pre><code>kubectl get ingress -A
-kubectl get svc -n kube-system | grep -i alb
+kubectl get svc -n kube-system | grep -iE "load-balancer|webhook"
 nslookup api.&lt;ingress-domain&gt;
 curl -sI https://api.&lt;ingress-domain&gt;/</code></pre>
 
