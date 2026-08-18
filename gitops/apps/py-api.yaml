@@ -1,4 +1,4 @@
-# Child Application for the py-api tenant (Python/FastAPI).
+# Child Application for the py-api tenant (Python/FastAPI) .
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
