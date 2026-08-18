@@ -14,7 +14,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: api.mini-paas.local
+    - host: api.54.197.139.23.nip.io
       http:
         paths:
           - path: /
