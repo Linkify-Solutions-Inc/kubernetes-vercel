@@ -400,7 +400,7 @@ ALB, wildcard DNS, and (optionally) TLS. Satisfies REQ-3.6-1 … 3.6-4.</p>
 <pre><code>kubectl get ingress -A
 kubectl get svc -n kube-system | grep -iE "load-balancer|webhook"
 nslookup api.&lt;ingress-domain&gt;
-curl -sI https://api.&lt;ingress-domain&gt;/</code></pre>
+curl -sI http://api.&lt;ingress-domain&gt;/</code></pre>
 
 <div class="box checkpoint"><div class="bx-label">Checkpoint 7-A</div><div class="bx-body">
 <p>Five host rules exist on one shared ALB (<code>group.name: mini-paas</code>); all five subdomains
@@ -410,8 +410,9 @@ fix the record, not the ingress.</p>
 
 <div class="box note"><div class="bx-label">Note — TLS is optional here</div><div class="bx-body">
 <p>With a real domain, cert-manager + Let's Encrypt issues certs (REQ-3.6-3). With the default
-nip.io/sslip.io wildcard, HTTPS via self-signed/HTTP is acceptable — do not let TLS become the thing
-that eats a week.</p>
+nip.io/sslip.io wildcard there is no TLS listener on the ALB, so <code>curl -sI https://…</code> hangs
+(connect to 443 never completes) — the reachability check must use <code>http://</code>. Do not let TLS
+become the thing that eats a week.</p>
 </div></div>
 
 <h2 id="ex6">Chapter 8 — Exercise 6: Autoscaling &amp; observability lab</h2>
