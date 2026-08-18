@@ -17,7 +17,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: go-api
-          image: 242626138899.dkr.ecr.us-east-1.amazonaws.com/mini-paas/go-api:13b447137f88329c0525c8af3165270ae647ee6d
+          image: 242626138899.dkr.ecr.us-east-1.amazonaws.com/mini-paas/go-api:05a39963f34d461523fa15b497ac14ef378f349a
           ports:
             - name: http
               containerPort: 3000
